@@ -54,7 +54,7 @@ HRESULT CViewDirect2D::InitDirect2D(HINSTANCE hInstance, LPTSTR lpCmdLine, int n
 
 	/* ID2D1Bitmapの生成 */
 	m_pRenderTarget->CreateBitmap(
-		D2D1::SizeU(size, size),
+		D2D1::SizeU(size*5, size),
 		D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE)),
 		&pBitmap);
 	
@@ -103,17 +103,25 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	HRESULT hResult = S_OK;
 	/* cv::Mat形式で画像を取得 */
 	cv::Mat orgImage = image_.getMat();
+	cv::Mat dstImage01 = image_.getMat();
+	cv::Mat dstImage02 = image_.getMat();
+	cv::Mat dstImage03 = image_.getMat();
+	cv::Mat dstImage04 = image_.getMat();
 
+	cv::hconcat(orgImage, dstImage01);
+	cv::hconcat(dstImage01, dstImage02);
+	cv::hconcat(dstImage02, dstImage03);
+	cv::hconcat(dstImage03, dstImage04);
 	byte *memory;
-	memory = new byte[size * size * 4];
+	memory = new byte[size * 2 * size * 4];
 
 	/* 画像データを確保済みのメモリ上へ書き込み */
 #pragma omp parallel for
-	for (int row = 0; row < orgImage.rows; row++) {
-		cv::Vec3b *src = orgImage.ptr<cv::Vec3b>(row);
-		for (int col = 0; col < orgImage.cols; col++) {
+	for (int row = 0; row < dstImage04.rows; row++) {
+		cv::Vec3b *src = dstImage04.ptr<cv::Vec3b>(row);
+		for (int col = 0; col < dstImage04.cols; col++) {
 			cv::Vec3b bgr = src[col];
-			int pointBGR = col * 4 + row * orgImage.rows * 4;
+			int pointBGR = col * 4 + row * dstImage04.rows * 4;
 			memory[pointBGR + 0] = bgr[0];
 			memory[pointBGR + 1] = bgr[1];
 			memory[pointBGR + 2] = bgr[2];
@@ -144,10 +152,10 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 			delete[] memory;
 			m_pRenderTarget->DrawBitmap(
 				pBitmap, //the bitmap to draw [a portion of],
-				D2D1::RectF(0.0f, 0.0f, 200, 200), //destination rectangle,
+				D2D1::RectF(0.0f, 0.0f, 200*5, 200), //destination rectangle,
 				1.0f, //alpha blending multiplier,
 				D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, //interpolation mode,
-				D2D1::RectF(0.0f, 0.0f, size, size)); //source rectangle
+				D2D1::RectF(0.0f, 0.0f, size*5, size)); //source rectangle
 		}
 
 		/* テキストフォーマットの生成 */

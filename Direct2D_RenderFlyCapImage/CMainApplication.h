@@ -8,6 +8,8 @@ class CApplication;
 class CMainApplication :
 	public CApplication
 {
+private:
+	cv::Mat image;
 public:
 public:
 	/* publicƒƒ“ƒoŠÖ” */

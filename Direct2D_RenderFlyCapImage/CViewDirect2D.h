@@ -18,7 +18,7 @@ private:
 	ID2D1SolidColorBrush* pBrush;
 	ID2D1Bitmap * pBitmap;
 	std::wstring strText = L"";
-	const unsigned size = 1008U;	// Bitmapのサイズ
+	const unsigned size = 504U;	// Bitmapのサイズ
 	double totalTime = 0;
 public:
 	FlyCap2CVWrapper* FlyCap;

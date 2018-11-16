@@ -39,7 +39,7 @@ BOOL CMainApplication::InitInstance(HINSTANCE hInstance, LPTSTR lpCmdLine, int n
 	/* ウィンドウサイズのセット */
 	rc.left = 100;		// 100
 	rc.top = 100;		// 100
-	rc.right = 900;		// 100 + 800
+	rc.right = 1100;		// 100 + 1000
 	rc.bottom = 700;	// 100 + 600
 
 	/* ウィンドウの作成 */
@@ -88,7 +88,9 @@ int CMainApplication::Run() {
 				lCount++;	// TRUEで返ってくるたびにlCountを増やす
 			}
 			/* レンダリング処理 */
-			hr = this->m_pWindow->AppIdle(FlyCap.readImage(), FPS.GetFPS());
+			image = FlyCap.readImage();
+			cv::resize(image, image, cv::Size(), 0.5, 0.5);
+			hr = this->m_pWindow->AppIdle(image, FPS.GetFPS());
 		}
 	}
 
