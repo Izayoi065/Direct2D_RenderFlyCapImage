@@ -11,12 +11,16 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 	pDWFactory = NULL;
 	pBrush = NULL;
 	pBitmap = NULL;	
+	memory = new byte[size * 5 * size * 4];
+	for (int i = 0;i < sizeof(memory);i++) {
+		memory[i] = 0;
+	}
 }
-
 
 CViewDirect2D::~CViewDirect2D()
 {
 	MyOutputDebugString(L"	~ViewDirectX11()‚ªŒÄ‚Ño‚³‚ê‚Ü‚µ‚½I\n");
+	delete[] memory;
 	ReleaseD2D();
 }
 
@@ -85,6 +89,22 @@ void CViewDirect2D::ReleaseD2D()
 	SAFE_RELEASE(m_pD2d1Factory);
 }
 
+void CViewDirect2D::copyImageToMemory(cv::InputArray image_, byte& memory, int num)
+{
+	cv::Mat image = image_.getMat();
+#pragma omp parallel for
+	for (int row = 0; row < size; row++) {
+		cv::Vec3b *src = renderImage01.ptr<cv::Vec3b>(row);
+		for (int col = 0; col < size; col++) {
+			cv::Vec3b bgr = src[col];
+			int pointBGR = row * size * 5 * 4 + col * 4 + size * 8 * (num-1);
+			memory[pointBGR + 0] = (byte)bgr[0];
+			memory[pointBGR + 1] = (byte)bgr[1];
+			memory[pointBGR + 2] = (byte)bgr[2];
+		}
+	}
+}
+
 HRESULT CViewDirect2D::AppIdle(cv::InputArray image_, double fps)
 {
 	HRESULT hr = S_OK;
@@ -102,31 +122,49 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	MyOutputDebugString(L"	Render()‚ğÀs‚µ‚Ü‚µ‚½D\n");
 	HRESULT hResult = S_OK;
 	/* cv::MatŒ`®‚Å‰æ‘œ‚ğæ“¾ */
-	cv::Mat orgImage = image_.getMat();
-	cv::Mat dstImage01 = image_.getMat();
-	cv::Mat dstImage02 = image_.getMat();
-	cv::Mat dstImage03 = image_.getMat();
-	cv::Mat dstImage04 = image_.getMat();
+	renderImage01 = image_.getMat();	// ‡@ƒJƒƒ‰‚©‚ç‚Ì“ü—Í‰æ‘œ
+	//cv::threshold(renderImage01, renderImage02, 100, 255, cv::THRESH_BINARY);
+	cv::Mat BLACKImage(renderImage01.rows, renderImage01.cols, CV_8UC3, cv::Scalar(0));
+	cv::Mat WHITEImage(renderImage01.rows, renderImage01.cols, CV_8UC3, cv::Scalar(255));
+	WHITEImage.copyTo(renderImage02);
+	BLACKImage.copyTo(renderImage03);
+	WHITEImage.copyTo(renderImage04);
+	BLACKImage.copyTo(renderImage05);
+	cv::Mat tmpImage01, tmpImage02, tmpImage03, dstImage;
 
-	cv::hconcat(orgImage, dstImage01);
-	cv::hconcat(dstImage01, dstImage02);
-	cv::hconcat(dstImage02, dstImage03);
-	cv::hconcat(dstImage03, dstImage04);
-	byte *memory;
-	memory = new byte[size * 2 * size * 4];
+	//cv::hconcat(renderImage01, renderImage02, tmpImage01);	// ‰æ‘œ‡@‚Æ‰æ‘œ‡A‚ğ˜AŒ‹			-> ‰æ‘œ‡@‡A
+	//cv::hconcat(tmpImage01, renderImage03, tmpImage02);	// ‰æ‘œ‡@‡A‚Æ‰æ‘œ‡B‚ğ˜AŒ‹		-> ‰æ‘œ‡@‡A‡B
+	//cv::hconcat(tmpImage02, renderImage04, tmpImage03);	// ‰æ‘œ‡@‡A‡B‚Æ‰æ‘œ‡C‚ğ˜AŒ‹		-> ‰æ‘œ‡@‡A‡B‡C
+	//cv::hconcat(tmpImage03, renderImage05, dstImage);	// ‰æ‘œ‡@‡A‡B‡C‚Æ‰æ‘œ‡D‚ğ˜AŒ‹	-> ‰æ‘œ‡@‡A‡B‡C‡D
 
 	/* ‰æ‘œƒf[ƒ^‚ğŠm•ÛÏ‚İ‚Ìƒƒ‚ƒŠã‚Ö‘‚«‚İ */
 #pragma omp parallel for
-	for (int row = 0; row < dstImage04.rows; row++) {
-		cv::Vec3b *src = dstImage04.ptr<cv::Vec3b>(row);
-		for (int col = 0; col < dstImage04.cols; col++) {
+	for (int row = 0; row < size; row++) {
+		cv::Vec3b *src = renderImage01.ptr<cv::Vec3b>(row);
+		for (int col = 0; col < size; col++) {
 			cv::Vec3b bgr = src[col];
-			int pointBGR = col * 4 + row * dstImage04.rows * 4;
-			memory[pointBGR + 0] = bgr[0];
-			memory[pointBGR + 1] = bgr[1];
-			memory[pointBGR + 2] = bgr[2];
+			int pointBGR = row * size * 5 * 4 + col * 4;
+			memory[pointBGR + 0] = (byte)bgr[0];
+			memory[pointBGR + 1] = (byte)bgr[1];
+			memory[pointBGR + 2] = (byte)bgr[2];
+			//memory[pointBGR + 3] = 0;
 		}
 	}
+	
+#pragma omp parallel for
+	for (int row = 0; row < size; row++) {
+		cv::Vec3b *src = renderImage01.ptr<cv::Vec3b>(row);
+		for (int col = 0; col < size; col++) {
+			cv::Vec3b bgr = src[col];
+			int pointBGR = row * size * 5 * 4 + col * 4 + size*8;
+			memory[pointBGR + 0] = (byte)bgr[0];
+			memory[pointBGR + 1] = (byte)bgr[1];
+			memory[pointBGR + 2] = (byte)bgr[2];
+			//memory[pointBGR + 3] = 0;
+		}
+	}
+
+	copyImageToMemory(renderImage01, &memory, 5);
 
 	// ƒ^[ƒQƒbƒgƒTƒCƒY‚Ìæ“¾
 	D2D1_SIZE_F oTargetSize = m_pRenderTarget->GetSize();
@@ -148,8 +186,7 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 
 		/* Bitmap‚Ì•`‰æ */
 		{
-			pBitmap->CopyFromMemory(NULL, memory, size * 4);
-			delete[] memory;
+			pBitmap->CopyFromMemory(NULL, memory, size * 5 * 4);
 			m_pRenderTarget->DrawBitmap(
 				pBitmap, //the bitmap to draw [a portion of],
 				D2D1::RectF(0.0f, 0.0f, 200*5, 200), //destination rectangle,

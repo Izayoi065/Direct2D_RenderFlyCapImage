@@ -18,15 +18,22 @@ private:
 	ID2D1SolidColorBrush* pBrush;
 	ID2D1Bitmap * pBitmap;
 	std::wstring strText = L"";
+	byte *memory;	// cv::Mat -> ID2D1Bitmap用のバッファ
 	const unsigned size = 504U;	// Bitmapのサイズ
 	double totalTime = 0;
 public:
 	FlyCap2CVWrapper* FlyCap;
+	cv::Mat renderImage01;
+	cv::Mat renderImage02;
+	cv::Mat renderImage03;
+	cv::Mat renderImage04;
+	cv::Mat renderImage05;
 public:
 	CViewDirect2D(CApplication *pApp);
 	~CViewDirect2D();
 	HRESULT InitDirect2D(HINSTANCE hInstance, LPTSTR lpCmdLine, int nShowCmd);
 	void ReleaseD2D();
+	void copyImageToMemory(cv::InputArray image_, byte& memory, int num);
 	HRESULT AppIdle(cv::InputArray image_, double fps);
 	HRESULT	Render(cv::InputArray image_, double fps);
 

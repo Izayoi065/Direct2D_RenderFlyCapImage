@@ -16,7 +16,13 @@
     <Filter Include="ソース ファイル\ApplicationClass">
       <UniqueIdentifier>{2578ad75-fc95-40d5-b8d8-cf0cdec314ff}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ソース ファイル\ViewClass">
+    <Filter Include="ヘッダー ファイル\ApplicationClass">
+      <UniqueIdentifier>{4fac8021-d82a-4f26-b1e0-292ba191aec5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\ViewerClass">
+      <UniqueIdentifier>{d279919d-c08b-4248-9bbd-65958c10dba4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\ViewerClass">
       <UniqueIdentifier>{49b34e4e-d88c-4557-9f61-ba2e731f5dcd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -27,18 +33,6 @@
     <ClInclude Include="targetver.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="CApplication.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="CMainApplication.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="CViewDirect2D.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="CWinBase.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -47,6 +41,18 @@
     </ClInclude>
     <ClInclude Include="FPSCounter.h">
       <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="CMainApplication.h">
+      <Filter>ヘッダー ファイル\ApplicationClass</Filter>
+    </ClInclude>
+    <ClInclude Include="CApplication.h">
+      <Filter>ヘッダー ファイル\ApplicationClass</Filter>
+    </ClInclude>
+    <ClInclude Include="CViewDirect2D.h">
+      <Filter>ヘッダー ファイル\ViewerClass</Filter>
+    </ClInclude>
+    <ClInclude Include="CWinBase.h">
+      <Filter>ヘッダー ファイル\ViewerClass</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -63,10 +69,10 @@
       <Filter>ソース ファイル\ApplicationClass</Filter>
     </ClCompile>
     <ClCompile Include="CViewDirect2D.cpp">
-      <Filter>ソース ファイル\ViewClass</Filter>
+      <Filter>ソース ファイル\ViewerClass</Filter>
     </ClCompile>
     <ClCompile Include="CWinBase.cpp">
-      <Filter>ソース ファイル\ViewClass</Filter>
+      <Filter>ソース ファイル\ViewerClass</Filter>
     </ClCompile>
     <ClCompile Include="FlyCap2CVWrapper.cpp">
       <Filter>ソース ファイル</Filter>
