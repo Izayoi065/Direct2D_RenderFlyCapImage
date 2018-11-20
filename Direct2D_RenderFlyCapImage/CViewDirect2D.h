@@ -33,7 +33,7 @@ public:
 	~CViewDirect2D();
 	HRESULT InitDirect2D(HINSTANCE hInstance, LPTSTR lpCmdLine, int nShowCmd);
 	void ReleaseD2D();
-	void copyImageToMemory(cv::InputArray image_, byte& memory, int num);
+	void copyImageToMemory(cv::InputArray image_, byte* data, int num);
 	HRESULT AppIdle(cv::InputArray image_, double fps);
 	HRESULT	Render(cv::InputArray image_, double fps);
 

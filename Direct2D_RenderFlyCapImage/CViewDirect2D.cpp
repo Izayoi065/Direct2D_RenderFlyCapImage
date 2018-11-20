@@ -2,6 +2,11 @@
 
 #include "CViewDirect2D.h"
 
+/** @brief CViewDirect2Dクラスのコンストラクタ
+@note この関数は，このクラスが呼び出された際に，最初に実行される
+@param pApp	CApplicationクラスのオブジェクト
+@sa CApplication CWinBase
+**/
 CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 {
 	MyOutputDebugString(L"	CViewDirect2D(CApplication*):CWinBase(CApplication)が呼び出されました！\n");
@@ -11,12 +16,16 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 	pDWFactory = NULL;
 	pBrush = NULL;
 	pBitmap = NULL;	
-	memory = new byte[size * 5 * size * 4];
+	memory = new byte[size * size * 4 * 5];	// 要素数：幅*高さ(pixel)*4(byte/pixel)が5ブロック
 	for (int i = 0;i < sizeof(memory);i++) {
 		memory[i] = 0;
 	}
 }
 
+/** @brief CViewDirect2Dクラスのデストラクタ
+@note この関数は，このクラスが破棄される際に，最後に実行される
+@sa ReleaseD2D
+**/
 CViewDirect2D::~CViewDirect2D()
 {
 	MyOutputDebugString(L"	~ViewDirectX11()が呼び出されました！\n");
@@ -24,6 +33,15 @@ CViewDirect2D::~CViewDirect2D()
 	ReleaseD2D();
 }
 
+/** @brief Direct2D関連の初期化を行う
+@note この関数は，このクラスで使用されるDirect2Dのデバイス・インターフェース等を初期化する．
+基本的には，このクラスのオブジェクトを生成した直後に使用する．
+@param hInstance	
+@param lpCmdLine	
+@param nShowCmd		
+@return HRESULTエラーコードを返す
+@sa D2D1CreateFactory CreateHwndRenderTarget CreateBitmap DWriteCreateFactory CreateSolidColorBrush
+**/
 HRESULT CViewDirect2D::InitDirect2D(HINSTANCE hInstance, LPTSTR lpCmdLine, int nShowCmd)
 {
 	CRect rect;
@@ -79,6 +97,10 @@ HRESULT CViewDirect2D::InitDirect2D(HINSTANCE hInstance, LPTSTR lpCmdLine, int n
 	return hResult;
 }
 
+/** @brief このクラスで使用したDirect2D関連のデバイス・インターフェースを安全に破棄する
+@note この関数は，このクラスで使用したDirect2D関連のデバイス・インターフェースを安全に破棄する
+@sa SAFE_RELEASE
+**/
 void CViewDirect2D::ReleaseD2D()
 {
 	SAFE_RELEASE(pBitmap);
@@ -89,22 +111,38 @@ void CViewDirect2D::ReleaseD2D()
 	SAFE_RELEASE(m_pD2d1Factory);
 }
 
-void CViewDirect2D::copyImageToMemory(cv::InputArray image_, byte& memory, int num)
+/** @brief ウィンドウの任意の位置に画像データをメモリ上に配置する．
+@note この関数は，ID2DBitmap::CopyFromMemoryを使用する前準備として，レンダリング対象の画像をメモリ上に配置する．
+この機能では，DXGI_FORMAT_B8G8R8A8_UNORMで作成されたID2DBitmapに対応したデータ形式でメモリ上に配置するために使用される．
+また，引数image_はOpenCVのcv::Mat型画像であり，データ形式はCV_8UC3とする(8bit3チャンネル)．
+@param image_	メモリ上に配置する画像
+@param data		画像データの配置先となるメモリのポインタ
+@param num		配置する場所(num=1,2,3,4,5)
+@sa	ID2DBitmap::CopyFromMemory InputArray 
+**/
+void CViewDirect2D::copyImageToMemory(cv::InputArray image_, byte* data, int num)
 {
 	cv::Mat image = image_.getMat();
 #pragma omp parallel for
 	for (int row = 0; row < size; row++) {
-		cv::Vec3b *src = renderImage01.ptr<cv::Vec3b>(row);
+		cv::Vec3b *src = image.ptr<cv::Vec3b>(row);
 		for (int col = 0; col < size; col++) {
 			cv::Vec3b bgr = src[col];
-			int pointBGR = row * size * 5 * 4 + col * 4 + size * 8 * (num-1);
-			memory[pointBGR + 0] = (byte)bgr[0];
-			memory[pointBGR + 1] = (byte)bgr[1];
-			memory[pointBGR + 2] = (byte)bgr[2];
+			int pointBGR = row * size * 5 * 4 + col * 4 + size * 4 * (num-1);
+			data[pointBGR + 0] = (byte)bgr[0];
+			data[pointBGR + 1] = (byte)bgr[1];
+			data[pointBGR + 2] = (byte)bgr[2];
 		}
 	}
 }
 
+/** @brief レンダリング関連のアイドル処理を行う．
+@note この関数は，KHAKIのレンダリングに関するアイドル処理を行う．
+@param image_	カメラからの入力画像
+@param fps		システムが実際に稼働しているフレームレート
+@return HRESULTエラーコードを返す
+@sa	Render
+**/
 HRESULT CViewDirect2D::AppIdle(cv::InputArray image_, double fps)
 {
 	HRESULT hr = S_OK;
@@ -117,54 +155,28 @@ HRESULT CViewDirect2D::AppIdle(cv::InputArray image_, double fps)
 	return hr;
 }
 
+/** @brief ウィンドウへのレンダリングを実行する．
+@note この関数は，KHAKIのメインウィンドウへ各画像のレンダリング処理を適用する．
+この機能では，Direct2Dを用いた全てのレンダリングが行われる．
+@param image_	カメラからの入力画像
+@param fps		システムが実際に稼働しているフレームレート
+@return HRESULTエラーコードを返す
+@sa copyImageToMemory m_pRenderTarget
+**/
 HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 {
 	MyOutputDebugString(L"	Render()を実行しました．\n");
 	HRESULT hResult = S_OK;
 	/* cv::Mat形式で画像を取得 */
 	renderImage01 = image_.getMat();	// ①カメラからの入力画像
-	//cv::threshold(renderImage01, renderImage02, 100, 255, cv::THRESH_BINARY);
-	cv::Mat BLACKImage(renderImage01.rows, renderImage01.cols, CV_8UC3, cv::Scalar(0));
-	cv::Mat WHITEImage(renderImage01.rows, renderImage01.cols, CV_8UC3, cv::Scalar(255));
-	WHITEImage.copyTo(renderImage02);
-	BLACKImage.copyTo(renderImage03);
-	WHITEImage.copyTo(renderImage04);
-	BLACKImage.copyTo(renderImage05);
-	cv::Mat tmpImage01, tmpImage02, tmpImage03, dstImage;
-
-	//cv::hconcat(renderImage01, renderImage02, tmpImage01);	// 画像①と画像②を連結			-> 画像①②
-	//cv::hconcat(tmpImage01, renderImage03, tmpImage02);	// 画像①②と画像③を連結		-> 画像①②③
-	//cv::hconcat(tmpImage02, renderImage04, tmpImage03);	// 画像①②③と画像④を連結		-> 画像①②③④
-	//cv::hconcat(tmpImage03, renderImage05, dstImage);	// 画像①②③④と画像⑤を連結	-> 画像①②③④⑤
+	cv::threshold(renderImage01, renderImage02, 100, 255, cv::THRESH_BINARY);
 
 	/* 画像データを確保済みのメモリ上へ書き込み */
-#pragma omp parallel for
-	for (int row = 0; row < size; row++) {
-		cv::Vec3b *src = renderImage01.ptr<cv::Vec3b>(row);
-		for (int col = 0; col < size; col++) {
-			cv::Vec3b bgr = src[col];
-			int pointBGR = row * size * 5 * 4 + col * 4;
-			memory[pointBGR + 0] = (byte)bgr[0];
-			memory[pointBGR + 1] = (byte)bgr[1];
-			memory[pointBGR + 2] = (byte)bgr[2];
-			//memory[pointBGR + 3] = 0;
-		}
-	}
-	
-#pragma omp parallel for
-	for (int row = 0; row < size; row++) {
-		cv::Vec3b *src = renderImage01.ptr<cv::Vec3b>(row);
-		for (int col = 0; col < size; col++) {
-			cv::Vec3b bgr = src[col];
-			int pointBGR = row * size * 5 * 4 + col * 4 + size*8;
-			memory[pointBGR + 0] = (byte)bgr[0];
-			memory[pointBGR + 1] = (byte)bgr[1];
-			memory[pointBGR + 2] = (byte)bgr[2];
-			//memory[pointBGR + 3] = 0;
-		}
-	}
-
-	copyImageToMemory(renderImage01, &memory, 5);
+	copyImageToMemory(renderImage01, this->memory, 1);	// ①カメラからの入力画像をメモリ上に配置
+	copyImageToMemory(renderImage02, this->memory, 2);
+	copyImageToMemory(renderImage01, this->memory, 3);
+	copyImageToMemory(renderImage01, this->memory, 4);
+	copyImageToMemory(renderImage01, this->memory, 5);
 
 	// ターゲットサイズの取得
 	D2D1_SIZE_F oTargetSize = m_pRenderTarget->GetSize();
@@ -174,7 +186,7 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	::BeginPaint(this->m_hWnd, &tPaintStruct);
 
 	/*
-	テキストの描画
+	レンダリング処理
 	*/
 	{
 		/* 開始 */
@@ -240,13 +252,19 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	return hResult;
 }
 
-/* ウィンドウ作成時のハンドラ OnCreate */
+/** @brief ウィンドウ作成時のハンドラ
+@note この関数は，ウィンドウを作成した際にハンドラとして呼び出される．
+@return ウィンドウ作成に成功したフラグ
+**/
 int CViewDirect2D::OnCreate(HWND hwnd, LPCREATESTRUCT lpCreateStruct) {
 	// ウィンドウ作成成功
 	return 0;
 }
 
-/* ウィンドウ破棄時のハンドラ OnDestroy */
+/** @brief プログラムを終了させるために，メッセージループを終了させる．
+@note この関数は，システムを終了させる際に呼び出され，メッセージループを終了させる．
+@sa	PostQuitMessage
+**/
 void CViewDirect2D::OnDestroy() {
 	// メッセージループ終了
 	PostQuitMessage(0);	// PostQuitMessageでメッセージループを終わらせる
