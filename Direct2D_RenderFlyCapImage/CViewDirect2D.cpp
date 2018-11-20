@@ -1,5 +1,19 @@
+/****************************************************************************************************
+ *タイトル：CViewDirect2D.cpp
+ *説明　　：
+ *		：
+ *外部LIB ：
+ *
+ *著作権　：Tomoki Kondo
+ *
+ *変更履歴：2018.11.20 Tuesday
+ *　　　：新規登録
+ *
+ ****************************************************************************************************/
+/* 定義関数 */
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
 
+ /* インクルードファイル */
 #include "CViewDirect2D.h"
 
 /** @brief CViewDirect2Dクラスのコンストラクタ
@@ -167,16 +181,21 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 {
 	MyOutputDebugString(L"	Render()を実行しました．\n");
 	HRESULT hResult = S_OK;
-	/* cv::Mat形式で画像を取得 */
-	renderImage01 = image_.getMat();	// ①カメラからの入力画像
+	/* ①cv::Mat形式で画像を取得 */
+	renderImage01 = image_.getMat();	// カメラからの入力画像
 	cv::threshold(renderImage01, renderImage02, 100, 255, cv::THRESH_BINARY);
+
+	/* ②手指領域のみを抽出する */
+	/* ③掌の中心位置を推定する */
+	/* ④手指の状態を解析する */
+	/* ⑤インプットモードのモデルを作成 */
 
 	/* 画像データを確保済みのメモリ上へ書き込み */
 	copyImageToMemory(renderImage01, this->memory, 1);	// ①カメラからの入力画像をメモリ上に配置
-	copyImageToMemory(renderImage02, this->memory, 2);
-	copyImageToMemory(renderImage01, this->memory, 3);
-	copyImageToMemory(renderImage01, this->memory, 4);
-	copyImageToMemory(renderImage01, this->memory, 5);
+	copyImageToMemory(renderImage02, this->memory, 2);	// ②手指領域の抽出画像をメモリ上に配置
+	copyImageToMemory(renderImage01, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
+	copyImageToMemory(renderImage01, this->memory, 4);	// ④解析情報の取得画像をメモリ上に配置
+	copyImageToMemory(renderImage01, this->memory, 5);	// ⑤インプットモードの判別画像をメモリ上に配置
 
 	// ターゲットサイズの取得
 	D2D1_SIZE_F oTargetSize = m_pRenderTarget->GetSize();

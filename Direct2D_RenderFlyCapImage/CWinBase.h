@@ -6,9 +6,7 @@
 #define tstring std::string
 #endif
 
-//------------------------------------------------
-// íËã`ä÷êî
-//------------------------------------------------
+/* íËã`ä÷êî */
 #define apiLoadImage(h,id,type,cast)    ((cast)LoadImage(h,MAKEINTRESOURCE(id),type,0,0,(LR_DEFAULTSIZE | LR_SHARED)))
 #define apiLoadIcon(h,id)               apiLoadImage(h,id,IMAGE_ICON,HICON)
 #define apiLoadCursor(h,id)             apiLoadImage(h,id,IMAGE_CURSOR,HCURSOR)
