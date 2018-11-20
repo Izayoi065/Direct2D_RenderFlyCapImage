@@ -22,7 +22,6 @@ CWinBase::~CWinBase() {
 
 }
 
-
 /* ウィンドウクラス登録関数 RegisterClass */
 BOOL CWinBase::RegisterClass(HINSTANCE hInstance) {
 	MyOutputDebugString(L"	CWinBase::RegisterClass(HINSTANCE) メソッドが呼び出されました．\n");
@@ -68,7 +67,7 @@ LRESULT CWinBase::StaticWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 		// ポインタの初期化
 		LPCREATESTRUCT lpCreateStruct = NULL;	// CREATESTRUCT構造体へのポインタlpCreateStructをNULL
 
-												/* lParamからlpCreateStructを取り出す */
+		/* lParamからlpCreateStructを取り出す */
 		lpCreateStruct = (LPCREATESTRUCT)lParam;	// lParamを(LPCREATESTRUCT)にキャスト
 		if (lpCreateStruct->lpCreateParams != NULL) {	// NULLでない場合
 			// lpCreateStruct->lpCreateParamsは(CWinBase *)にキャストしpWindowに入れる
@@ -103,6 +102,7 @@ LRESULT CWinBase::StaticWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 		return pWindow->DynamicWindowProc(hwnd, uMsg, wParam, lParam);	// pWindow->DynamiProcに渡す.
 	}
 }
+
 // バージョン情報ボックスのメッセージ ハンドラーです。
 INT_PTR CWinBase::About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -125,13 +125,14 @@ INT_PTR CWinBase::About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 /* ウィンドウ作成関数 */
 BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD dwStyle, const RECT & rect, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance) {
-	// ウィンドウを作成する.
+	// ウィンドウを作成する.http://wisdom.sakura.ne.jp/system/winapi/win32/win7.html
 	m_hWnd = CreateWindow(lpctszClassName, lpctszWindowName, dwStyle, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hWndParent, hMenu, hInstance, this);	// CreateWindowで指定された引数を使ってウィンドウを作成.
 	if (m_hWnd == NULL) {	// NULLなら失敗.
 							// FALSEを返す.
 		return FALSE;
 	}
-
+	// 画像のレンダリングするスペースを作成する．
+	m_hWndViewTarget = CreateWindow(L"STATIC", NULL, WS_CHILD | WS_VISIBLE | SS_BITMAP, 0, 0, rect.right - rect.left, 200, m_hWnd, NULL, hInstance, NULL);
 	// 成功ならTRUE.
 	return TRUE;
 }
@@ -145,7 +146,7 @@ BOOL CWinBase::Create(LPCTSTR lpctszWindowName, const RECT & rect) {
 	}
 
 	// デフォルトのウィンドウ作成
-	return CWinBase::Create(_T("CWinBase"), lpctszWindowName, WS_OVERLAPPEDWINDOW, rect, NULL, NULL, m_pApp->m_hInstance);	// フルバージョンのCreateでウィンドウ作成.
+	return CWinBase::Create(_T("CWinBase"), lpctszWindowName, WS_OVERLAPPEDWINDOW ^ WS_MAXIMIZEBOX ^ WS_THICKFRAME, rect, NULL, NULL, m_pApp->m_hInstance);	// フルバージョンのCreateでウィンドウ作成.
 }
 
 /* ウィンドウ表示関数 ShowWindow */

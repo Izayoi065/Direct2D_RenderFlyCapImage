@@ -59,7 +59,7 @@ CViewDirect2D::~CViewDirect2D()
 HRESULT CViewDirect2D::InitDirect2D(HINSTANCE hInstance, LPTSTR lpCmdLine, int nShowCmd)
 {
 	CRect rect;
-	::GetClientRect(this->m_hWnd, &rect);	// クライアント領域のサイズを取得
+	::GetClientRect(this->m_hWndViewTarget, &rect);	// クライアント領域のサイズを取得
 
 	HRESULT hResult = S_OK;
 
@@ -77,7 +77,7 @@ HRESULT CViewDirect2D::InitDirect2D(HINSTANCE hInstance, LPTSTR lpCmdLine, int n
 	*/
 	D2D1_SIZE_U PixelSize = { rect.Width(), rect.Height() };
 	D2D1_RENDER_TARGET_PROPERTIES RenderTargetProperties = D2D1::RenderTargetProperties();
-	D2D1_HWND_RENDER_TARGET_PROPERTIES HwndRenderTargetProperties = D2D1::HwndRenderTargetProperties(this->m_hWnd, PixelSize);
+	D2D1_HWND_RENDER_TARGET_PROPERTIES HwndRenderTargetProperties = D2D1::HwndRenderTargetProperties(this->m_hWndViewTarget, PixelSize);
 	HwndRenderTargetProperties.presentOptions = D2D1_PRESENT_OPTIONS_IMMEDIATELY;	// 垂直同期しない	http://www.wisdomsoft.jp/444.html
 	hResult = m_pD2d1Factory->CreateHwndRenderTarget(
 		RenderTargetProperties,
@@ -202,7 +202,7 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 
 	// 描画開始
 	PAINTSTRUCT tPaintStruct;
-	::BeginPaint(this->m_hWnd, &tPaintStruct);
+	::BeginPaint(this->m_hWndViewTarget, &tPaintStruct);
 
 	/*
 	レンダリング処理
@@ -266,7 +266,7 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	}
 
 	// 描画終了
-	::EndPaint(this->m_hWnd, &tPaintStruct);
+	::EndPaint(this->m_hWndViewTarget, &tPaintStruct);
 
 	return hResult;
 }

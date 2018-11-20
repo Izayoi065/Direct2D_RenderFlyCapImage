@@ -19,6 +19,7 @@ class CWinBase
 public:
 	/* メンバ変数 */
 	HWND m_hWnd;			// ウィンドウハンドルm_hWnd
+	HWND m_hWndViewTarget;	// 各種画像をレンダリングするスペース
 	CApplication * m_pApp;	// アプリケーションオブジェクトポインタm_pApp
 	static std::map<HWND, CWinBase *> m_mapWindowMap;	// ウィンドウハンドルからウィンドウオブジェクトを引くマップ.
 
