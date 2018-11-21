@@ -15,6 +15,7 @@
 
  /* インクルードファイル */
 #include "CViewDirect2D.h"
+#include "resource.h"		// リソースファイル
 
 /** @brief CViewDirect2Dクラスのコンストラクタ
 @note この関数は，このクラスが呼び出された際に，最初に実行される
@@ -137,7 +138,7 @@ void CViewDirect2D::ReleaseD2D()
 void CViewDirect2D::copyImageToMemory(cv::InputArray image_, byte* data, int num)
 {
 	cv::Mat image = image_.getMat();
-#pragma omp parallel for
+#pragma omp parallel for	 
 	for (int row = 0; row < size; row++) {
 		cv::Vec3b *src = image.ptr<cv::Vec3b>(row);
 		for (int col = 0; col < size; col++) {
@@ -148,6 +149,21 @@ void CViewDirect2D::copyImageToMemory(cv::InputArray image_, byte* data, int num
 			data[pointBGR + 2] = (byte)bgr[2];
 		}
 	}
+}
+
+/** @brief 手指領域の抽出処理を実行する．
+@note この関数は，入力画像から手指領域を抽出処理を適用する．出力では，抽出された手指領域の二値化画像が出力される．
+@param image_		 カメラからの入力画像
+@param outImage_	抽出された手指領域の二値化画像
+@sa	Render
+**/
+void CViewDirect2D::handExtractor(cv::InputArray inImage_, cv::OutputArray outImage_)
+{
+	cv::Mat inImage = inImage_.getMat();
+	cv::Mat dstImage;
+
+
+	dstImage.copyTo(outImage_);
 }
 
 /** @brief レンダリング関連のアイドル処理を行う．

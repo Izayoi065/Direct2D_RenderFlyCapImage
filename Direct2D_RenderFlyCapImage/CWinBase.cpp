@@ -7,7 +7,7 @@
 // staticメンバ変数の定義.
 std::map<HWND, CWinBase *> CWinBase::m_mapWindowMap;	// staticメンバ変数CWinBase::m_mapWindowMapは宣言と別にここに定義しないといけない.
 
-														/* コンストラクタ CWinBase */
+/* コンストラクタ CWinBase */
 CWinBase::CWinBase(CApplication * pApp) {
 	MyOutputDebugString(L"	CWinBase::CWinBase(CApplication *) メソッドが呼び出されました．\n");
 
@@ -20,6 +20,54 @@ CWinBase::CWinBase(CApplication * pApp) {
 CWinBase::~CWinBase() {
 	MyOutputDebugString(L"	CWinBase::~CWinBase() メソッドが呼び出されました．\n");
 
+}
+
+HRESULT CWinBase::GetDir(HWND hWnd, TCHAR * def_dir, TCHAR * path)
+{
+	BROWSEINFO bInfo;
+	LPITEMIDLIST pIDList;
+
+	memset(&bInfo, 0, sizeof(bInfo));
+	bInfo.hwndOwner = hWnd; // ダイアログの親ウインドウのハンドル 
+	bInfo.pidlRoot = NULL; // ルートフォルダをデスクトップフォルダとする 
+	bInfo.pszDisplayName = path; //フォルダ名を受け取るバッファへのポインタ 
+	bInfo.lpszTitle = TEXT("フォルダの選択"); // ツリービューの上部に表示される文字列 
+	bInfo.ulFlags = BIF_RETURNONLYFSDIRS | BIF_EDITBOX | BIF_VALIDATE | BIF_NEWDIALOGSTYLE; // 表示されるフォルダの種類を示すフラグ 
+	bInfo.lpfn = BrowseCallbackProc; // BrowseCallbackProc関数のポインタ 
+	bInfo.lParam = (LPARAM)def_dir;
+	pIDList = SHBrowseForFolder(&bInfo);
+	if (pIDList == NULL) {
+		path[0] = _TEXT('\0');
+		return S_OK; //何も選択されなかった場合 
+	}
+	else {
+		if (!SHGetPathFromIDList(pIDList, path))
+			return false;//変換に失敗 
+		CoTaskMemFree(pIDList);// pIDListのメモリを開放 
+		return S_OK;
+	}
+}
+
+std::string CWinBase::WStringToString(std::wstring oWString) {
+	// wstring → SJIS
+	int iBufferSize = WideCharToMultiByte(CP_OEMCP, 0, oWString.c_str()
+		, -1, (char *)NULL, 0, NULL, NULL);
+
+	// バッファの取得
+	CHAR* cpMultiByte = new CHAR[iBufferSize];
+
+	// wstring → SJIS
+	WideCharToMultiByte(CP_OEMCP, 0, oWString.c_str(), -1, cpMultiByte
+		, iBufferSize, NULL, NULL);
+
+	// stringの生成
+	std::string oRet(cpMultiByte, cpMultiByte + iBufferSize - 1);
+
+	// バッファの破棄
+	delete[] cpMultiByte;
+
+	// 変換結果を返す
+	return(oRet);
 }
 
 /* ウィンドウクラス登録関数 RegisterClass */
@@ -73,7 +121,7 @@ LRESULT CWinBase::StaticWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 			// lpCreateStruct->lpCreateParamsは(CWinBase *)にキャストしpWindowに入れる
 			pWindow = (CWinBase *)lpCreateStruct->lpCreateParams;
 			// CWinBase::m_mapWindowMapにhwndとpWindowのペアを登録
-		CWinBase:m_mapWindowMap.insert(std::pair < HWND, CWinBase *>(hwnd, pWindow));
+		CWinBase::m_mapWindowMap.insert(std::pair < HWND, CWinBase *>(hwnd, pWindow));
 		}
 	}
 	// 既定の処理へ以降
@@ -125,14 +173,36 @@ INT_PTR CWinBase::About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 /* ウィンドウ作成関数 */
 BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD dwStyle, const RECT & rect, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance) {
-	// ウィンドウを作成する.http://wisdom.sakura.ne.jp/system/winapi/win32/win7.html
+	// ウィンドウを作成する. http://wisdom.sakura.ne.jp/system/winapi/win32/win7.html
 	m_hWnd = CreateWindow(lpctszClassName, lpctszWindowName, dwStyle, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hWndParent, hMenu, hInstance, this);	// CreateWindowで指定された引数を使ってウィンドウを作成.
 	if (m_hWnd == NULL) {	// NULLなら失敗.
-							// FALSEを返す.
+		// FALSEを返す.
 		return FALSE;
 	}
 	// 画像のレンダリングするスペースを作成する．
 	m_hWndViewTarget = CreateWindow(L"STATIC", NULL, WS_CHILD | WS_VISIBLE | SS_BITMAP, 0, 0, rect.right - rect.left, 200, m_hWnd, NULL, hInstance, NULL);
+
+	// 録画モードのグループを作成
+	CreateWindow(L"BUTTON", L"録画モード", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 10, 210, 680, 100, m_hWnd, NULL, hInstance, NULL);
+	CreateWindow(L"STATIC", L"保存先：", WS_CHILD | WS_VISIBLE, 15, 235, 65, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
+	CreateWindow(L"STATIC", L"ファイル名：", WS_CHILD | WS_VISIBLE, 15, 260, 100, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
+	CreateWindow(L"STATIC", L"キャプチャー開始：", WS_CHILD | WS_VISIBLE, 275, 260, 145, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
+	CreateWindow(L"STATIC", L"キャプチャー停止：", WS_CHILD | WS_VISIBLE, 480, 260, 145, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
+	
+	// テキストボックスを追加
+	m_hwndTextBoxPhase[CID_TX_CapturePass] = CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 75, 235, 550, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
+	m_hwndTextBoxPhase[CID_TX_FileName] = CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 115, 260, 150, 20, m_hWnd, (HMENU)CID_TX_FileName, hInstance, NULL);
+	// ボタンを追加
+	m_hwndBUTTONPhase[CID_BT_GetFolderPass] = CreateWindow(L"BUTTON", NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON | BS_ICON, 625, 235, 30, 20, m_hWnd, (HMENU)CID_BT_GetFolderPass, hInstance, NULL);
+	SendMessage(m_hwndBUTTONPhase[CID_BT_GetFolderPass], BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadImage(hInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 40, 40, LR_DEFAULTCOLOR));
+	EnableWindow(m_hwndBUTTONPhase[CID_BT_GetFolderPass], TRUE);
+
+	m_hwndBUTTONPhase[CID_BT_CaptureStart] = CreateWindow(L"BUTTON", L"Start", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 420, 260, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureStart, hInstance, NULL);
+	EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureStart], TRUE);
+	
+	m_hwndBUTTONPhase[CID_BT_CaptureEmd] = CreateWindow(L"BUTTON", L"Stop", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 625, 260, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureEmd, hInstance, NULL);
+	EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEmd], FALSE);
+
 	// 成功ならTRUE.
 	return TRUE;
 }
@@ -182,6 +252,7 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 	case WM_COMMAND:
 	{
 		int wmId = LOWORD(wParam);
+		MyOutputDebugString(L"\n	WM_COMMAND：%dを受け取りました\n\n", wmId);
 		// 選択されたメニューの解析:
 		switch (wmId)
 		{
@@ -191,6 +262,42 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 		case IDM_EXIT:
 			DestroyWindow(hwnd);
 			break;
+		case CID_BT_CaptureStart:
+		{
+			LPWSTR destPass = NULL, fileName = NULL, ptr = NULL;
+			GetWindowText(m_hwndTextBoxPhase[CID_TX_CapturePass], destPass, GetWindowTextLength(hwnd) + 2);
+			GetWindowText(m_hwndTextBoxPhase[CID_TX_FileName], fileName, GetWindowTextLength(hwnd) + 2);
+			//_tcscat_sでエラーが発生
+			_tcscat_s(destPass, sizeof(destPass) / sizeof(LPWSTR), L"\\");
+			_tcscat_s(destPass, sizeof(destPass) / sizeof(LPWSTR), fileName);
+			cv::String cvPass = "";
+			cvPass = WStringToString(ptr);
+			this->writer.open(cvPass, cv::VideoWriter::fourcc('X', 'V', 'I', 'D'), this->m_pApp->fps, cv::Size(504, 504), false);
+			if (!writer.isOpened()) { return -1; }
+
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureStart], FALSE);
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEmd], TRUE);
+		}
+			break;
+		case CID_BT_CaptureEmd:
+		{
+			this->writer.release();
+
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureStart], TRUE);
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEmd], FALSE);
+		}
+			break;
+		case CID_BT_GetFolderPass:
+		{
+			TCHAR dir[MAX_PATH];            //      選択されたフォルダー名
+			TCHAR def_dir[MAX_PATH];        //      初期フォルダー
+			_tcscpy_s(def_dir, sizeof(def_dir) / sizeof(TCHAR), _TEXT("C:"));
+			if (GetDir(0, def_dir, dir) == TRUE) {
+				MessageBox(0, dir, _TEXT("選択されたフォルダー名\n"), MB_OK);
+			}
+			SetWindowText(m_hwndTextBoxPhase[CID_TX_CapturePass], (LPCTSTR)dir);
+		}
+		break;
 		default:
 			return DefWindowProc(hwnd, uMsg, wParam, lParam);
 		}
@@ -208,4 +315,33 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 
 	// DefWindowProcに任せる.
 	return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+//http://yamatyuu.net/computer/program/sdk/common_dialog/SHBrowseForFolder/index.html
+int CWinBase::BrowseCallbackProc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
+{
+	TCHAR dir[MAX_PATH];
+	ITEMIDLIST *lpid;
+	HWND hEdit;
+
+	switch (uMsg) {
+	case BFFM_INITIALIZED:  //      ダイアログボックス初期化時
+		SendMessage(hWnd, BFFM_SETSELECTION, (WPARAM)TRUE, lpData);     //      コモンダイアログの初期ディレクトリ
+		break;
+	case BFFM_VALIDATEFAILED:       //      無効なフォルダー名が入力された
+		MessageBox(hWnd, (TCHAR*)lParam, _TEXT("無効なフォルダー名が入力されました"), MB_OK);
+		hEdit = FindWindowEx(hWnd, NULL, _TEXT("EDIT"), NULL);     //      エディットボックスのハンドルを取得する
+		SetWindowText(hEdit, _TEXT(""));
+		return 1;       //      ダイアログボックスを閉じない
+		break;
+	case BFFM_IUNKNOWN:
+		break;
+	case BFFM_SELCHANGED:   //      選択フォルダーが変化した場合
+		lpid = (ITEMIDLIST *)lParam;
+		SHGetPathFromIDList(lpid, dir);
+		hEdit = FindWindowEx(hWnd, NULL, _TEXT("EDIT"), NULL);     //      エディットボックスのハンドルを取得する
+		SetWindowText(hEdit, dir);
+		break;
+	}
+	return 0;
 }

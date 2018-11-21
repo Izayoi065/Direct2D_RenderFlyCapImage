@@ -8,6 +8,7 @@ public:
 	/* publicメンバ変数 */
 	HINSTANCE m_hInstance;	// アプリケーションインスタンスハンドルm_hInstance
 	CViewDirect2D *m_pWindow;		// ウィンドウクラスポインタm_pWindow
+	double fps;
 public:
 	CApplication();				// コンストラクタ
 	virtual ~CApplication();	// デストラクタ

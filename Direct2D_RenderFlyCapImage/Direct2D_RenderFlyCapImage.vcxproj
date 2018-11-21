@@ -178,6 +178,9 @@
   <ItemGroup>
     <ResourceCompile Include="Direct2D_RenderFlyCapImage.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="icon_フォルダを参照.ico" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

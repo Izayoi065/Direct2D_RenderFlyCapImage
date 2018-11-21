@@ -16,6 +16,91 @@ CMainApplication::~CMainApplication() {
 
 }
 
+BITMAPINFOHEADER CMainApplication::MakeBITINFO(int nWidth, int nHeight, LPVOID lpBits)
+{
+	DWORD dwSizeImage;
+	BITMAPFILEHEADER bmfHeader;
+	BITMAPINFOHEADER bmiHeader;
+
+	dwSizeImage = nHeight * ((3 * nWidth + 3) / 4) * 4;
+
+	ZeroMemory(&bmfHeader, sizeof(BITMAPFILEHEADER));
+	bmfHeader.bfType = *(LPWORD)"BM";
+	bmfHeader.bfSize = sizeof(BITMAPFILEHEADER)
+		+ sizeof(BITMAPINFOHEADER) + dwSizeImage;
+
+	bmfHeader.bfOffBits = sizeof(BITMAPFILEHEADER)
+		+ sizeof(BITMAPINFOHEADER);
+
+	ZeroMemory(&bmiHeader, sizeof(BITMAPINFOHEADER));
+	bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bmiHeader.biWidth = nWidth;
+	bmiHeader.biHeight = -nHeight;
+	bmiHeader.biPlanes = 1;
+	bmiHeader.biBitCount = 32;
+	bmiHeader.biSizeImage -= dwSizeImage;
+	bmiHeader.biCompression = BI_RGB;
+	bmiHeader.biClrUsed = 0;
+	bmiHeader.biClrImportant = 0;
+	bmiHeader.biXPelsPerMeter = 0;
+	bmiHeader.biYPelsPerMeter = 0;
+
+	return bmiHeader;
+}
+
+HBITMAP CMainApplication::CreateBackbuffer(int nWidth, int nHeight)
+{
+	LPVOID lp;
+	BITMAPINFO bmi;
+	BITMAPINFOHEADER bmiHeader;
+
+	ZeroMemory(&bmiHeader, sizeof(BITMAPINFOHEADER));
+	bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bmiHeader.biWidth = nWidth;
+	bmiHeader.biHeight = -nHeight;
+	bmiHeader.biPlanes = 1;
+	bmiHeader.biBitCount = 32;
+
+	bmi.bmiHeader = bmiHeader;
+
+	return CreateDIBSection(NULL, (LPBITMAPINFO)&bmi,
+		DIB_RGB_COLORS, &lp, NULL, 0);
+}
+
+void CMainApplication::ConvertToMat(HWND hwnd, cv::OutputArray outImage_)
+{
+	HDC hdc;
+	RECT rc;
+	BITMAP bm;
+	HBITMAP hbmp;
+	HBITMAP hbmpPrev;
+
+	GetClientRect(hwnd, &rc);
+
+	hdc = CreateCompatibleDC(NULL);
+	hbmp = CreateBackbuffer(rc.right, rc.bottom);
+	hbmpPrev = (HBITMAP)SelectObject(hdc, hbmp);
+
+	BitBlt(hdc, 0, 0, rc.right, rc.bottom, GetWindowDC(hwnd), 0, 0, SRCCOPY);
+
+	GetObject(hbmp, sizeof(BITMAP), &bm);
+
+
+	BITMAPINFOHEADER bi = MakeBITINFO(rc.right, rc.bottom, bm.bmBits);
+
+	cv::Mat converted_mat;
+	converted_mat.create(rc.bottom, rc.right, CV_8UC4);
+
+	GetDIBits(hdc, hbmp, 0, bm.bmHeight,
+		converted_mat.data, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
+
+	SelectObject(hdc, hbmpPrev);
+	DeleteObject(hbmp);
+	DeleteDC(hdc);
+
+	converted_mat.copyTo(outImage_);
+}
+
 
 /* インスタンス初期化関数 InitInstance */
 BOOL CMainApplication::InitInstance(HINSTANCE hInstance, LPTSTR lpCmdLine, int nShowCmd) {
@@ -88,9 +173,10 @@ int CMainApplication::Run() {
 				lCount++;	// TRUEで返ってくるたびにlCountを増やす
 			}
 			/* レンダリング処理 */
+			fps = FPS.GetFPS();
 			image = FlyCap.readImage();
 			cv::resize(image, image, cv::Size(), 0.5, 0.5);
-			hr = this->m_pWindow->AppIdle(image, FPS.GetFPS());
+			hr = this->m_pWindow->AppIdle(image, fps);
 		}
 	}
 

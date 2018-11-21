@@ -34,6 +34,7 @@ public:
 	HRESULT InitDirect2D(HINSTANCE hInstance, LPTSTR lpCmdLine, int nShowCmd);
 	void ReleaseD2D();
 	void copyImageToMemory(cv::InputArray image_, byte* data, int num);
+	void handExtractor(cv::InputArray inImage_, cv::OutputArray outImage_);
 	HRESULT AppIdle(cv::InputArray image_, double fps);
 	HRESULT	Render(cv::InputArray image_, double fps);
 

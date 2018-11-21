@@ -46,6 +46,7 @@
 #include <map>			// std::map
 #include "atltypes.h"	// CRect
 #include <atlstr.h> 
+#include <shlobj.h>
 #include <xnamath.h>
 #include <chrono>
 #include <iostream>

@@ -16,20 +16,42 @@ class CApplication;		// アプリケーションクラス CApplication
 
 class CWinBase
 {
+private:
+	/* ボタン管理用のID */
+	enum ID_BUTTON
+	{
+		CID_BT_GetFolderPass = 1000,
+		CID_BT_CaptureStart,
+		CID_BT_CaptureEmd,
+		CID_BT_END,
+	};
+	/* テキストボックス管理用のID */
+	enum
+	{
+		CID_TX_CapturePass = 2000,
+		CID_TX_FileName,
+		CID_TX_END,
+	};
+	HWND m_hwndTextBoxPhase[CID_TX_END];	// テキストボックス管理用の識別子
+	HWND m_hwndBUTTONPhase[CID_BT_END];		// ボタン管理用の識別子
 public:
 	/* メンバ変数 */
 	HWND m_hWnd;			// ウィンドウハンドルm_hWnd
 	HWND m_hWndViewTarget;	// 各種画像をレンダリングするスペース
 	CApplication * m_pApp;	// アプリケーションオブジェクトポインタm_pApp
+	cv::VideoWriter writer; //ビデオに書き込む変数
 	static std::map<HWND, CWinBase *> m_mapWindowMap;	// ウィンドウハンドルからウィンドウオブジェクトを引くマップ.
 
 public:
 	CWinBase(CApplication *pApp);	// コンストラクタCWinBase(pApp)
 	virtual ~CWinBase();			// デストラクタ~CWinBase
+	HRESULT GetDir(HWND hWnd, TCHAR* def_dir, TCHAR* path);
+	std::string WStringToString(std::wstring oWString);
 
 	static BOOL RegisterClass(HINSTANCE hInstance);	// ウィンドウクラス登録関数RegisterClass.
 	static LRESULT CALLBACK StaticWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);	// 最初にシステムからメッセージが届くウィンドウプロシージャStaticWindowProc.
 	static INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+	static int CALLBACK BrowseCallbackProc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM lpData);
 
 	/* 仮想関数 */
 	virtual BOOL Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD dwStyle,

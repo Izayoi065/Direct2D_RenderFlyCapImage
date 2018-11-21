@@ -3,9 +3,9 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
     <FLYCAPTURE2>C:\Program Files\Point Grey Research\FlyCapture2</FLYCAPTURE2>
-    <OPENCV310>D:\dev\opencv-3.1.0\build</OPENCV310>
+    <OPENCV310>E:\dev\opencv-3.1.0\build</OPENCV310>
     <DIRECTX9>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)</DIRECTX9>
-    <OPENCV340>D:\dev\opencv-3.4.0\build</OPENCV340>
+    <OPENCV340>E:\dev\opencv-3.4.0\build</OPENCV340>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup>

@@ -86,4 +86,9 @@
       <Filter>リソース ファイル</Filter>
     </ResourceCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="icon_フォルダを参照.ico">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+  </ItemGroup>
 </Project>
