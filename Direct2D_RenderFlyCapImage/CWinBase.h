@@ -34,12 +34,14 @@ private:
 	};
 	HWND m_hwndTextBoxPhase[CID_TX_END];	// テキストボックス管理用の識別子
 	HWND m_hwndBUTTONPhase[CID_BT_END];		// ボタン管理用の識別子
+	
 public:
 	/* メンバ変数 */
 	HWND m_hWnd;			// ウィンドウハンドルm_hWnd
 	HWND m_hWndViewTarget;	// 各種画像をレンダリングするスペース
 	CApplication * m_pApp;	// アプリケーションオブジェクトポインタm_pApp
 	cv::VideoWriter writer; //ビデオに書き込む変数
+	BOOL flagCapture = false;
 	static std::map<HWND, CWinBase *> m_mapWindowMap;	// ウィンドウハンドルからウィンドウオブジェクトを引くマップ.
 
 public:
@@ -47,6 +49,7 @@ public:
 	virtual ~CWinBase();			// デストラクタ~CWinBase
 	HRESULT GetDir(HWND hWnd, TCHAR* def_dir, TCHAR* path);
 	std::string WStringToString(std::wstring oWString);
+	void setFlagCapture(BOOL flag);
 
 	static BOOL RegisterClass(HINSTANCE hInstance);	// ウィンドウクラス登録関数RegisterClass.
 	static LRESULT CALLBACK StaticWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);	// 最初にシステムからメッセージが届くウィンドウプロシージャStaticWindowProc.

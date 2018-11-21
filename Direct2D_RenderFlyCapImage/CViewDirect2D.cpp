@@ -179,6 +179,15 @@ HRESULT CViewDirect2D::AppIdle(cv::InputArray image_, double fps)
 	/* cv::Mat形式で画像を取得 */
 	cv::Mat image = image_.getMat();
 
+	// キャプチャモードに移行しているのであれば...
+	if (flagCapture) {
+		MyOutputDebugString(L"・flagCapture = true\n");
+		if (writer.isOpened()) {
+			MyOutputDebugString(L"・writer.isOpened() = true\n");
+			writer << image;
+		}
+	}
+
 	/* 画面の更新 */
 	hr = Render(image, fps);
 

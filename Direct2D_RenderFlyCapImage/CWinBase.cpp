@@ -70,6 +70,11 @@ std::string CWinBase::WStringToString(std::wstring oWString) {
 	return(oRet);
 }
 
+void CWinBase::setFlagCapture(BOOL flag)
+{
+	flagCapture = flag;
+}
+
 /* ウィンドウクラス登録関数 RegisterClass */
 BOOL CWinBase::RegisterClass(HINSTANCE hInstance) {
 	MyOutputDebugString(L"	CWinBase::RegisterClass(HINSTANCE) メソッドが呼び出されました．\n");
@@ -190,7 +195,7 @@ BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD d
 	CreateWindow(L"STATIC", L"キャプチャー停止：", WS_CHILD | WS_VISIBLE, 480, 260, 145, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
 	
 	// テキストボックスを追加
-	m_hwndTextBoxPhase[CID_TX_CapturePass] = CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 75, 235, 550, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
+	m_hwndTextBoxPhase[CID_TX_CapturePass] = CreateWindow(L"EDIT", L"E:\\workspace", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 75, 235, 550, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
 	m_hwndTextBoxPhase[CID_TX_FileName] = CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 115, 260, 150, 20, m_hWnd, (HMENU)CID_TX_FileName, hInstance, NULL);
 	// ボタンを追加
 	m_hwndBUTTONPhase[CID_BT_GetFolderPass] = CreateWindow(L"BUTTON", NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON | BS_ICON, 625, 235, 30, 20, m_hWnd, (HMENU)CID_BT_GetFolderPass, hInstance, NULL);
@@ -253,6 +258,7 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 	{
 		int wmId = LOWORD(wParam);
 		MyOutputDebugString(L"\n	WM_COMMAND：%dを受け取りました\n\n", wmId);
+
 		// 選択されたメニューの解析:
 		switch (wmId)
 		{
@@ -264,27 +270,31 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 			break;
 		case CID_BT_CaptureStart:
 		{
-			LPWSTR destPass = NULL, fileName = NULL, ptr = NULL;
-			GetWindowText(m_hwndTextBoxPhase[CID_TX_CapturePass], destPass, GetWindowTextLength(hwnd) + 2);
-			GetWindowText(m_hwndTextBoxPhase[CID_TX_FileName], fileName, GetWindowTextLength(hwnd) + 2);
-			//_tcscat_sでエラーが発生
-			_tcscat_s(destPass, sizeof(destPass) / sizeof(LPWSTR), L"\\");
-			_tcscat_s(destPass, sizeof(destPass) / sizeof(LPWSTR), fileName);
-			cv::String cvPass = "";
-			cvPass = WStringToString(ptr);
-			this->writer.open(cvPass, cv::VideoWriter::fourcc('X', 'V', 'I', 'D'), this->m_pApp->fps, cv::Size(504, 504), false);
+			TCHAR destPass[101], fileName[101];
+			GetWindowText(m_hwndTextBoxPhase[CID_TX_CapturePass], destPass, sizeof(destPass));
+			GetWindowText(m_hwndTextBoxPhase[CID_TX_FileName], fileName, sizeof(fileName));
+			cv::String cvFilePass = WStringToString(lstrcat(lstrcat(lstrcat(destPass, TEXT("\\")), fileName),TEXT(".avi")));
+			writer.open(cvFilePass, cv::VideoWriter::fourcc('X', 'V', 'I', 'D'), m_pApp->fps, cv::Size(504, 504), true);
 			if (!writer.isOpened()) { return -1; }
 
+			setFlagCapture(true);
 			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureStart], FALSE);
+			EnableWindow(m_hwndBUTTONPhase[CID_TX_CapturePass], FALSE);
 			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEmd], TRUE);
+			EnableWindow(m_hwndTextBoxPhase[CID_TX_CapturePass], FALSE);
+			EnableWindow(m_hwndTextBoxPhase[CID_TX_FileName], FALSE);
 		}
 			break;
 		case CID_BT_CaptureEmd:
 		{
-			this->writer.release();
+			writer.release();
 
+			setFlagCapture(false);
 			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureStart], TRUE);
+			EnableWindow(m_hwndBUTTONPhase[CID_TX_CapturePass], TRUE);
 			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEmd], FALSE);
+			EnableWindow(m_hwndTextBoxPhase[CID_TX_CapturePass], TRUE);
+			EnableWindow(m_hwndTextBoxPhase[CID_TX_FileName], TRUE);
 		}
 			break;
 		case CID_BT_GetFolderPass:
