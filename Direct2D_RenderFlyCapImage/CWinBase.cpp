@@ -7,23 +7,35 @@
 // staticメンバ変数の定義.
 std::map<HWND, CWinBase *> CWinBase::m_mapWindowMap;	// staticメンバ変数CWinBase::m_mapWindowMapは宣言と別にここに定義しないといけない.
 
-/* コンストラクタ CWinBase */
+/** @brief CWinBaseクラスのコンストラクタ
+@note この関数は，このクラスが呼び出された際に，最初に実行される
+@param pApp
+@sa CViewDirect2D CApplication
+**/
 CWinBase::CWinBase(CApplication * pApp) {
 	MyOutputDebugString(L"	CWinBase::CWinBase(CApplication *) メソッドが呼び出されました．\n");
-
 	// メンバの初期化
 	m_hWnd = NULL;	// m_hWndをNULL.
 	m_pApp = pApp;	// m_pAppをpApp.
-
-	m_hBrush_BkColor = CreateSolidBrush(RGB(150, 170, 192));
+	m_hBrush_BkColor = CreateSolidBrush(RGB(0, 0, 0));	// STATICコントロールの背景
 }
 
-/* デストラクタ ~CWinBase */
+/** @brief CWinBaseクラスのデストラクタ
+@note この関数は，このクラスが呼び出された際に，最後に実行される
+@sa 
+**/
 CWinBase::~CWinBase() {
 	MyOutputDebugString(L"	CWinBase::~CWinBase() メソッドが呼び出されました．\n");
-
 }
 
+/** @brief フォルダー名を取得する
+@note この関数は，SHBrowseForFolderを用いてフォルダ名を取得するダイアログをポップさせる．
+@param hWnd		ダイアログの親ウィンドウ・ハンドル
+@param def_dir	フォルダ選択時の初期ディレクトリ
+@param path		選択したフォルダのパス
+@return HRESULTエラーコードを返す
+@sa WStringToString BrowseCallbackProc
+**/
 HRESULT CWinBase::GetDir(HWND hWnd, TCHAR * def_dir, TCHAR * path)
 {
 	BROWSEINFO bInfo;
@@ -50,6 +62,12 @@ HRESULT CWinBase::GetDir(HWND hWnd, TCHAR * def_dir, TCHAR * path)
 	}
 }
 
+/** @brief std::wstring型文字列をstd::string型文字列に変換する．
+@note この関数は，std::wstring型文字列(TCHARなど)をstd::string型文字列(cv::Stringなど)への変換処理を適用する．
+@param oWString	変換したいstd::wstring型の文字列
+@return	変換後の文字列
+@sa flagCapture WideCharToMultiByte
+**/
 std::string CWinBase::WStringToString(std::wstring oWString) {
 	// wstring → SJIS
 	int iBufferSize = WideCharToMultiByte(CP_OEMCP, 0, oWString.c_str()
@@ -72,6 +90,11 @@ std::string CWinBase::WStringToString(std::wstring oWString) {
 	return(oRet);
 }
 
+/** @brief 録画モードの開始・停止のフラグを設定する．
+@note この関数は，録画モードの開始・停止のフラグであるCWinBase::flagCaptureを切り替える．
+@param flag	録画モードのフラグ
+@sa flagCapture
+**/
 void CWinBase::setFlagCapture(BOOL flag)
 {
 	flagCapture = flag;
@@ -178,7 +201,19 @@ INT_PTR CWinBase::About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	return (INT_PTR)FALSE;
 }
 
-/* ウィンドウ作成関数 */
+/** @brief ウィンドウを作成する
+@note この関数は，引数のパラメータに従ってメインウィンドウを作成する．
+各種コントロール等についてもここで作成を行う．
+@param lpctszClassName	作成するウィンドウのクラス名
+@param lpctszWindowName	作成するウィンドウ名
+@param dwStyle			ウィンドウのスタイル
+@param rect				作成するウィンドウのサイズ
+@param hWndParent		親ウィンドウまたはオーナーウィンドウとなるハンドルを指定
+@param hMenu			メニューのハンドル
+@param hInstance		インスタンスハンドル
+@return	関数の処理結果の成否
+@sa CreateWindow SendMessage EnableWindow m_hWndViewTarget m_hwndSTATICPhase m_hwndTextBoxPhase m_hwndBUTTONPhase
+**/
 BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD dwStyle, const RECT & rect, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance) {
 	// ウィンドウを作成する. http://wisdom.sakura.ne.jp/system/winapi/win32/win7.html
 	m_hWnd = CreateWindow(lpctszClassName, lpctszWindowName, dwStyle, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hWndParent, hMenu, hInstance, this);	// CreateWindowで指定された引数を使ってウィンドウを作成.
@@ -226,7 +261,14 @@ BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD d
 	return TRUE;
 }
 
-/* ウィンドウ作成関数 Create（ウィンドウ名とサイズのみのオーバーロード関数） */
+/** @brief ウィンドウを作成する
+@note この関数は，ウィンドウを作成する前段階として，アプリケーションオブジェクトのポインタが生成されているかを確認する．
+生成されていた場合，ウィンドウ作成の処理を実行する．
+@param lpctszWindowName	作成するウィンドウ名
+@param rect				作成するウィンドウのサイズ
+@return	関数の処理結果の成否
+@sa Create
+**/
 BOOL CWinBase::Create(LPCTSTR lpctszWindowName, const RECT & rect) {
 
 	// アプリケーションオブジェクトポインタのチェック
@@ -238,7 +280,12 @@ BOOL CWinBase::Create(LPCTSTR lpctszWindowName, const RECT & rect) {
 	return CWinBase::Create(_T("CWinBase"), lpctszWindowName, WS_OVERLAPPEDWINDOW ^ WS_MAXIMIZEBOX ^ WS_THICKFRAME, rect, NULL, NULL, m_pApp->m_hInstance);	// フルバージョンのCreateでウィンドウ作成.
 }
 
-/* ウィンドウ表示関数 ShowWindow */
+/** @brief 本プログラムのメインプログラムの表示状態を変更する．
+@note この関数は，本プログラムのメインプログラムの表示状態を変更する．
+@param nCmdShow	ウィンドウの表示状態を表す定数(SW_SHOWで表示)
+@return	関数の処理結果の成否
+@sa ShowWindow
+**/
 BOOL CWinBase::ShowWindow(int nCmdShow) {
 	MyOutputDebugString(L"	CWinBase::ShowWindow(int) メソッドが呼び出されました．\n");
 
@@ -377,7 +424,15 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 	return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
-//http://yamatyuu.net/computer/program/sdk/common_dialog/SHBrowseForFolder/index.html
+/** @brief GetDir メソッドで設定したフォルダー名取得ダイアログのコールバック関数
+@note この関数は，GetDir メソッドで設定したフォルダー名取得ダイアログ用のコールバック関数である．
+@param hWnd		ウィンドウへのハンドル
+@param uMsg		メッセージ
+@param lParam	追加のメッセージ情報：uMsgの値によって異なる
+@param lpData	フォルダ選択時の初期ディレクトリ
+@return 成功した場合は0を返す
+@sa http://yamatyuu.net/computer/program/sdk/common_dialog/SHBrowseForFolder/index.html
+**/
 int CWinBase::BrowseCallbackProc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
 {
 	TCHAR dir[MAX_PATH];
