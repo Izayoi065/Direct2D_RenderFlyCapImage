@@ -22,19 +22,30 @@ private:
 	{
 		CID_BT_GetFolderPass = 1000,
 		CID_BT_CaptureStart,
-		CID_BT_CaptureEmd,
+		CID_BT_CaptureEnd,
 		CID_BT_END,
 	};
-	/* テキストボックス管理用のID */
-	enum
+	/* STATICコントロール管理用のID */
+	enum ID_STATIC
 	{
-		CID_TX_CapturePass = 2000,
+		CID_ST_GetFolderPass = 2000,
+		CID_ST_FileName,
+		CID_ST_CaptureStart,
+		CID_ST_CaptureEnd,
+		CID_ST_END,
+	};
+	/* テキストボックス管理用のID */
+	enum ID_EDIT
+	{
+		CID_TX_CapturePass = 3000,
 		CID_TX_FileName,
+		CID_TX_Log,
 		CID_TX_END,
 	};
 	HWND m_hwndTextBoxPhase[CID_TX_END];	// テキストボックス管理用の識別子
+	HWND m_hwndSTATICPhase[CID_ST_END];		// STATICコントロール管理用の識別子
 	HWND m_hwndBUTTONPhase[CID_BT_END];		// ボタン管理用の識別子
-	
+	HBRUSH      m_hBrush_BkColor;   //背景の色
 public:
 	/* メンバ変数 */
 	HWND m_hWnd;			// ウィンドウハンドルm_hWnd

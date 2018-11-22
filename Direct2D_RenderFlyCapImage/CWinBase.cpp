@@ -14,6 +14,8 @@ CWinBase::CWinBase(CApplication * pApp) {
 	// メンバの初期化
 	m_hWnd = NULL;	// m_hWndをNULL.
 	m_pApp = pApp;	// m_pAppをpApp.
+
+	m_hBrush_BkColor = CreateSolidBrush(RGB(150, 170, 192));
 }
 
 /* デストラクタ ~CWinBase */
@@ -188,25 +190,37 @@ BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD d
 	m_hWndViewTarget = CreateWindow(L"STATIC", NULL, WS_CHILD | WS_VISIBLE | SS_BITMAP, 0, 0, rect.right - rect.left, 200, m_hWnd, NULL, hInstance, NULL);
 
 	// 録画モードのグループを作成
-	CreateWindow(L"BUTTON", L"録画モード", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 10, 210, 680, 100, m_hWnd, NULL, hInstance, NULL);
-	CreateWindow(L"STATIC", L"保存先：", WS_CHILD | WS_VISIBLE, 15, 235, 65, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
-	CreateWindow(L"STATIC", L"ファイル名：", WS_CHILD | WS_VISIBLE, 15, 260, 100, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
-	CreateWindow(L"STATIC", L"キャプチャー開始：", WS_CHILD | WS_VISIBLE, 275, 260, 145, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
-	CreateWindow(L"STATIC", L"キャプチャー停止：", WS_CHILD | WS_VISIBLE, 480, 260, 145, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
-	
+	CreateWindow(L"BUTTON", L"録画モード", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 10, 210, 670, 75, m_hWnd, NULL, hInstance, NULL);
+	m_hwndSTATICPhase[CID_ST_GetFolderPass] = 
+		CreateWindow(L"STATIC", L"保存先：", WS_CHILD | WS_VISIBLE, 15, 235, 65, 18, m_hWnd, (HMENU)CID_ST_GetFolderPass, hInstance, NULL);
+	m_hwndSTATICPhase[CID_ST_FileName] = 
+		CreateWindow(L"STATIC", L"ファイル名：", WS_CHILD | WS_VISIBLE, 15, 260, 96, 18, m_hWnd, (HMENU)CID_ST_FileName, hInstance, NULL);
+	m_hwndSTATICPhase[CID_ST_CaptureStart] = 
+		CreateWindow(L"STATIC", L"キャプチャー開始：", WS_CHILD | WS_VISIBLE, 275, 260, 145, 18, m_hWnd, (HMENU)CID_ST_CaptureStart, hInstance, NULL);
+	m_hwndSTATICPhase[CID_ST_CaptureEnd] = 
+		CreateWindow(L"STATIC", L"キャプチャー停止：", WS_CHILD | WS_VISIBLE, 480, 260, 145, 18, m_hWnd, (HMENU)CID_ST_CaptureEnd, hInstance, NULL);
 	// テキストボックスを追加
-	m_hwndTextBoxPhase[CID_TX_CapturePass] = CreateWindow(L"EDIT", L"E:\\workspace", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 75, 235, 550, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
-	m_hwndTextBoxPhase[CID_TX_FileName] = CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 115, 260, 150, 20, m_hWnd, (HMENU)CID_TX_FileName, hInstance, NULL);
+	m_hwndTextBoxPhase[CID_TX_CapturePass] = 
+		CreateWindow(L"EDIT", L"E:\\workspace", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 75, 235, 550, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
+	m_hwndTextBoxPhase[CID_TX_FileName] = 
+		CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 115, 260, 150, 20, m_hWnd, (HMENU)CID_TX_FileName, hInstance, NULL);
 	// ボタンを追加
-	m_hwndBUTTONPhase[CID_BT_GetFolderPass] = CreateWindow(L"BUTTON", NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON | BS_ICON, 625, 235, 30, 20, m_hWnd, (HMENU)CID_BT_GetFolderPass, hInstance, NULL);
+	m_hwndBUTTONPhase[CID_BT_GetFolderPass] = 
+		CreateWindow(L"BUTTON", NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON | BS_ICON, 625, 235, 30, 20, m_hWnd, (HMENU)CID_BT_GetFolderPass, hInstance, NULL);
 	SendMessage(m_hwndBUTTONPhase[CID_BT_GetFolderPass], BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadImage(hInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 40, 40, LR_DEFAULTCOLOR));
 	EnableWindow(m_hwndBUTTONPhase[CID_BT_GetFolderPass], TRUE);
-
-	m_hwndBUTTONPhase[CID_BT_CaptureStart] = CreateWindow(L"BUTTON", L"Start", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 420, 260, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureStart, hInstance, NULL);
+	m_hwndBUTTONPhase[CID_BT_CaptureStart] = 
+		CreateWindow(L"BUTTON", L"Start", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 420, 260, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureStart, hInstance, NULL);
 	EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureStart], TRUE);
-	
-	m_hwndBUTTONPhase[CID_BT_CaptureEmd] = CreateWindow(L"BUTTON", L"Stop", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 625, 260, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureEmd, hInstance, NULL);
-	EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEmd], FALSE);
+	m_hwndBUTTONPhase[CID_BT_CaptureEnd] = 
+		CreateWindow(L"BUTTON", L"Stop", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 625, 260, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureEnd, hInstance, NULL);
+	EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEnd], FALSE);
+
+	// ログのグループを作成
+	CreateWindow(L"BUTTON", L"Log", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 690, 210, 285, 325, m_hWnd, NULL, hInstance, NULL);
+	// テキストボックスを追加
+	m_hwndTextBoxPhase[CID_TX_Log] =
+		CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 695, 235, 275, 295, m_hWnd, (HMENU)CID_TX_Log, hInstance, NULL);
 
 	// 成功ならTRUE.
 	return TRUE;
@@ -242,18 +256,54 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 	{
 		// OnCreateに任せる.
 		return OnCreate(hwnd, (LPCREATESTRUCT)lParam);	// hwndとlParamをOnCreateに渡してあとは任せる
+		// 既定の処理
+		break; 
 	}
-	// 既定の処理
-	break;
 	/* ウィンドウが破棄された時 */
 	case WM_DESTROY:
 		// WM_DESTROYブロック
 	{
 		// OnDestroyに任せる.
 		OnDestroy();	// OnDestroyを呼ぶ
+		// 既定の処理
+		break;
 	}
-	// 既定の処理
-	break;
+	case WM_CTLCOLORSTATIC:
+	{
+		HDC hDC = (HDC)wParam;
+		HWND hCtrl = (HWND)lParam;
+
+		if (hCtrl == GetDlgItem(m_hWnd, CID_ST_GetFolderPass)) // スタティックウィンドウのID
+		{
+			SetBkMode(hDC, OPAQUE);             // 背景を塗りつぶし
+			SetTextColor(hDC, RGB(0, 0, 0));    // テキストの色
+			SetBkColor(hDC, RGB(255, 255, 255));   // テキストが書かれている部分のテキストの背景の色
+			return (LRESULT)m_hBrush_BkColor;   // テキストが書かれていない部分の背景の色
+		}
+		else if (hCtrl == GetDlgItem(m_hWnd, CID_ST_FileName)) // スタティックウィンドウのID
+		{
+			SetBkMode(hDC, OPAQUE);             // 背景を塗りつぶし
+			SetTextColor(hDC, RGB(0, 0, 0));    // テキストの色
+			SetBkColor(hDC, RGB(255, 255, 255));   // テキストが書かれている部分のテキストの背景の色
+			return (LRESULT)m_hBrush_BkColor;   // テキストが書かれていない部分の背景の色
+		}
+		else if (hCtrl == GetDlgItem(m_hWnd, CID_ST_CaptureStart)) // スタティックウィンドウのID
+		{
+			SetBkMode(hDC, OPAQUE);             // 背景を塗りつぶし
+			SetTextColor(hDC, RGB(0, 0, 0));    // テキストの色
+			SetBkColor(hDC, RGB(255, 255, 255));   // テキストが書かれている部分のテキストの背景の色
+			return (LRESULT)m_hBrush_BkColor;   // テキストが書かれていない部分の背景の色
+		}
+		else if (hCtrl == GetDlgItem(m_hWnd, CID_ST_CaptureEnd)) // スタティックウィンドウのID
+		{
+			SetBkMode(hDC, OPAQUE);             // 背景を塗りつぶし
+			SetTextColor(hDC, RGB(0, 0, 0));    // テキストの色
+			SetBkColor(hDC, RGB(255, 255, 255));   // テキストが書かれている部分のテキストの背景の色
+			return (LRESULT)m_hBrush_BkColor;   // テキストが書かれていない部分の背景の色
+		}
+
+		break;
+	}
 	case WM_COMMAND:
 	{
 		int wmId = LOWORD(wParam);
@@ -280,23 +330,23 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 			setFlagCapture(true);
 			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureStart], FALSE);
 			EnableWindow(m_hwndBUTTONPhase[CID_TX_CapturePass], FALSE);
-			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEmd], TRUE);
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEnd], TRUE);
 			EnableWindow(m_hwndTextBoxPhase[CID_TX_CapturePass], FALSE);
 			EnableWindow(m_hwndTextBoxPhase[CID_TX_FileName], FALSE);
-		}
 			break;
-		case CID_BT_CaptureEmd:
+		}
+		case CID_BT_CaptureEnd:
 		{
 			writer.release();
 
 			setFlagCapture(false);
 			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureStart], TRUE);
 			EnableWindow(m_hwndBUTTONPhase[CID_TX_CapturePass], TRUE);
-			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEmd], FALSE);
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEnd], FALSE);
 			EnableWindow(m_hwndTextBoxPhase[CID_TX_CapturePass], TRUE);
 			EnableWindow(m_hwndTextBoxPhase[CID_TX_FileName], TRUE);
+			break; 
 		}
-			break;
 		case CID_BT_GetFolderPass:
 		{
 			TCHAR dir[MAX_PATH];            //      選択されたフォルダー名
@@ -306,8 +356,8 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 				MessageBox(0, dir, _TEXT("選択されたフォルダー名\n"), MB_OK);
 			}
 			SetWindowText(m_hwndTextBoxPhase[CID_TX_CapturePass], (LPCTSTR)dir);
+			break;
 		}
-		break;
 		default:
 			return DefWindowProc(hwnd, uMsg, wParam, lParam);
 		}
