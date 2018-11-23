@@ -112,6 +112,26 @@ void CWinBase::setFlagCapture(BOOL flag)
 	flagCapture = flag;
 }
 
+void CWinBase::setHSVMinThreshold(cv::Scalar min)
+{
+	hsv_min = min;
+}
+
+void CWinBase::setHSVMaxThreshold(cv::Scalar max)
+{
+	hsv_max = max;
+}
+
+cv::Scalar CWinBase::getHSVMinThreshold()
+{
+	return hsv_min;
+}
+
+cv::Scalar CWinBase::getHSVMaxThreshold()
+{
+	return hsv_max;
+}
+
 /** @brief ウィンドウクラスを登録する
 @note この関数は，引数のHINSTANCEパラメータを保持したウィンドウクラスを作成する．
 この機能では，WNDCLASSEXでウィンドウクラスの設定を行い，RegisterClassExにて作成を行う．
@@ -214,7 +234,7 @@ LRESULT CWinBase::StaticWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 @note この関数は，メインウィンドウのメニューバーにある[ヘルプ(H)]->[バージョン情報(A)...]を選択した際に呼び出されるダイアログ
 についてのコールバック関数．
 @param hDlg		ウィンドウへのハンドル
-@param message		メッセージ
+@param message	メッセージ
 @param wParam	追加のメッセージ情報：w-パラメータ
 @param lParam	追加のメッセージ情報：l-パラメータ
 @return	INT_PTR 関数の処理結果の成否
@@ -230,6 +250,49 @@ INT_PTR CWinBase::About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_COMMAND:
 		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
+}
+
+/** @brief メインウィンドウのメニューバーより，[設定(O)]->[詳細な設定(S)]で呼び出されるダイアログの設定
+@note この関数は，メインウィンドウのメニューバーにある[設定(O)]->[詳細な設定(S)]を選択した際に呼び出されるダイアログ
+についてのコールバック関数．
+@param hDlg		ウィンドウへのハンドル
+@param message	メッセージ
+@param wParam	追加のメッセージ情報：w-パラメータ
+@param lParam	追加のメッセージ情報：l-パラメータ
+@return	INT_PTR 関数の処理結果の成否
+@sa callback CWinBase UNREFERENCED_PARAMETER EndDialog
+**/
+INT_PTR CWinBase::Setting(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	UNREFERENCED_PARAMETER(lParam);
+	TCHAR minHue[4], minSaturation[4], minBrightness[4], maxHue[4], maxSaturation[4], maxBrightness[4];
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK)
+		{
+			GetDlgItemText(hDlg, IDC_EDITMINHUE, minHue, sizeof(minHue));
+			GetDlgItemText(hDlg, IDC_EDITMINHUE, maxHue, sizeof(maxHue));
+			GetDlgItemText(hDlg, IDC_EDITMINHUE, minSaturation, sizeof(minSaturation));
+			GetDlgItemText(hDlg, IDC_EDITMINHUE, maxSaturation, sizeof(maxSaturation));
+			GetDlgItemText(hDlg, IDC_EDITMINHUE, minBrightness, sizeof(minBrightness));
+			GetDlgItemText(hDlg, IDC_EDITMINHUE, maxBrightness, sizeof(maxBrightness));
+			//SendMessage(GetParent(hDlg), )
+			MyOutputDebugString(L"%d", ::_ttoi(minHue));
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		else if (LOWORD(wParam) == IDCANCEL)
 		{
 			EndDialog(hDlg, LOWORD(wParam));
 			return (INT_PTR)TRUE;
@@ -409,6 +472,9 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 		case IDM_ABOUT:
 			DialogBox(this->m_pApp->m_hInstance, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, About);
 			break;
+		case IDM_SETTING:
+			DialogBox(this->m_pApp->m_hInstance, MAKEINTRESOURCE(IDD_SETTINGBOX), hwnd, Setting);
+				break;
 		case IDM_EXIT:
 			DestroyWindow(hwnd);
 			break;

@@ -20,7 +20,7 @@ private:
 	/* ボタン管理用のID */
 	enum ID_BUTTON
 	{
-		CID_BT_GetFolderPass = 1000,
+		CID_BT_GetFolderPass = 10000,
 		CID_BT_CaptureStart,
 		CID_BT_CaptureEnd,
 		CID_BT_END,
@@ -28,7 +28,7 @@ private:
 	/* STATICコントロール管理用のID */
 	enum ID_STATIC
 	{
-		CID_ST_GetFolderPass = 2000,
+		CID_ST_GetFolderPass = 11000,
 		CID_ST_FileName,
 		CID_ST_CaptureStart,
 		CID_ST_CaptureEnd,
@@ -37,7 +37,7 @@ private:
 	/* テキストボックス管理用のID */
 	enum ID_EDIT
 	{
-		CID_TX_CapturePass = 3000,
+		CID_TX_CapturePass = 12000,
 		CID_TX_FileName,
 		CID_TX_Log,
 		CID_TX_END,
@@ -53,6 +53,8 @@ public:
 	CApplication * m_pApp;	// アプリケーションオブジェクトポインタm_pApp
 	cv::VideoWriter writer; //ビデオに書き込む変数
 	BOOL flagCapture = false;
+	cv::Scalar hsv_min = cv::Scalar(0, 0, 120);
+	cv::Scalar hsv_max = cv::Scalar(180, 255, 150);
 	static std::map<HWND, CWinBase *> m_mapWindowMap;	// ウィンドウハンドルからウィンドウオブジェクトを引くマップ.
 
 public:
@@ -61,10 +63,15 @@ public:
 	HRESULT GetDir(HWND hWnd, TCHAR* def_dir, TCHAR* path);
 	std::string WStringToString(std::wstring oWString);
 	void setFlagCapture(BOOL flag);
+	void setHSVMinThreshold(cv::Scalar min);
+	void setHSVMaxThreshold(cv::Scalar max);
+	cv::Scalar getHSVMinThreshold();
+	cv::Scalar getHSVMaxThreshold();
 
 	static BOOL RegisterClass(HINSTANCE hInstance);	// ウィンドウクラス登録関数RegisterClass.
 	static LRESULT CALLBACK StaticWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);	// 最初にシステムからメッセージが届くウィンドウプロシージャStaticWindowProc.
 	static INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+	static INT_PTR CALLBACK Setting(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 	static int CALLBACK BrowseCallbackProc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM lpData);
 
 	/* 仮想関数 */

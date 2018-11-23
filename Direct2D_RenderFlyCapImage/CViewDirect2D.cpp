@@ -13,8 +13,8 @@
 /* 定義関数 */
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
 
- /* インクルードファイル */
-#include "CViewDirect2D.h"
+/* インクルードファイル */
+#include "CViewDirect2D.h"	// DirectX2D関連の初期化クラス
 #include "resource.h"		// リソースファイル
 
 /** @brief CViewDirect2Dクラスのコンストラクタ
@@ -160,8 +160,10 @@ void CViewDirect2D::copyImageToMemory(cv::InputArray image_, byte* data, int num
 void CViewDirect2D::handExtractor(cv::InputArray inImage_, cv::OutputArray outImage_)
 {
 	cv::Mat inImage = inImage_.getMat();
-	cv::Mat dstImage;
-
+	cv::Mat hev_mask, dstImage;
+	cv::cvtColor(inImage, dstImage, CV_BGR2HSV);
+	cv::inRange(dstImage, hsv_min, hsv_max, hev_mask);
+	cv::cvtColor(hev_mask, dstImage, CV_GRAY2BGR);
 
 	dstImage.copyTo(outImage_);
 }
@@ -211,6 +213,7 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	cv::threshold(renderImage01, renderImage02, 100, 255, cv::THRESH_BINARY);
 
 	/* ②手指領域のみを抽出する */
+	handExtractor(renderImage01, renderImage02);
 	/* ③掌の中心位置を推定する */
 	/* ④手指の状態を解析する */
 	/* ⑤インプットモードのモデルを作成 */
