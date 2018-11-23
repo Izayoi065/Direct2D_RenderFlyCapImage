@@ -1,4 +1,16 @@
-/* インクルードファイル */
+/****************************************************************************************************
+ *タイトル：CViewDirect2D.cpp
+ *説明　　：
+ *		：
+ *外部LIB ：
+ *
+ *著作権　：Tomoki Kondo
+ *
+ *変更履歴：2018.11.20 Tuesday
+ *　　　：新規登録
+ *
+ ****************************************************************************************************/
+ /* インクルードファイル */
 #include "CApplication.h"	// アプリケーションクラス
 #include "CWinBase.h"		// 基底ウィンドウクラス
 #include "resource.h"		// リソースファイル
@@ -65,7 +77,7 @@ HRESULT CWinBase::GetDir(HWND hWnd, TCHAR * def_dir, TCHAR * path)
 /** @brief std::wstring型文字列をstd::string型文字列に変換する．
 @note この関数は，std::wstring型文字列(TCHARなど)をstd::string型文字列(cv::Stringなど)への変換処理を適用する．
 @param oWString	変換したいstd::wstring型の文字列
-@return	変換後の文字列
+@return	std::string変換後の文字列
 @sa flagCapture WideCharToMultiByte
 **/
 std::string CWinBase::WStringToString(std::wstring oWString) {
@@ -100,7 +112,13 @@ void CWinBase::setFlagCapture(BOOL flag)
 	flagCapture = flag;
 }
 
-/* ウィンドウクラス登録関数 RegisterClass */
+/** @brief ウィンドウクラスを登録する
+@note この関数は，引数のHINSTANCEパラメータを保持したウィンドウクラスを作成する．
+この機能では，WNDCLASSEXでウィンドウクラスの設定を行い，RegisterClassExにて作成を行う．
+@param hInstance 
+@return	BOOL 関数の処理結果の成否
+@sa callback CWinBase WNDCLASSEX RegisterClassEx
+**/
 BOOL CWinBase::RegisterClass(HINSTANCE hInstance) {
 	MyOutputDebugString(L"	CWinBase::RegisterClass(HINSTANCE) メソッドが呼び出されました．\n");
 
@@ -119,10 +137,10 @@ BOOL CWinBase::RegisterClass(HINSTANCE hInstance) {
 	wcex.hCursor = apiLoadCursor(NULL, IDC_ARROW);			// カーソルのハンドル
 	wcex.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);		// 背景ブラシのハンドル
 	wcex.lpszMenuName = (LPCWSTR)IDC_DIRECT2DRENDERFLYCAPIMAGE;						// メニューバーの識別文字列
-																//wcex.lpszMenuName = NULL;										// メニューバーの識別文字列
+	//wcex.lpszMenuName = NULL;										// メニューバーの識別文字列
 	wcex.lpszClassName = _T("CWinBase");							// ウィンドウクラス名"CWinBase"
 
-																	/* ウィンドウクラスの登録 */
+	/* ウィンドウクラスの登録 */
 	if (!::RegisterClassEx(&wcex)) {	// WindowsAPIのRegisterClass関数で登録
 		return FALSE;
 	}
@@ -131,12 +149,23 @@ BOOL CWinBase::RegisterClass(HINSTANCE hInstance) {
 	return TRUE;
 }
 
-/* staticウィンドウプロシージャ StaticWindowProc */
+/** @brief 基本的なウィンドウプロシージャ
+@note この関数は，アプリケーションに送られてきたメッセージを処理する専用のコールバック関数．
+メインウィンドウ作成時にはウィンドウオブジェクト CWinBaseとウィンドウ・ハンドル hwndをペアで登録する．
+その他の処理については，ウィンドウオブジェクトが取得できる場合はそのウィンドウのDynamicWindowProcに，
+できない場合は既定のDefWindowProcに渡す．
+@param hWnd		ウィンドウへのハンドル
+@param uMsg		メッセージ
+@param wParam	追加のメッセージ情報：w-パラメータ
+@param lParam	追加のメッセージ情報：l-パラメータ
+@return	LRESULT エラーコードを返す
+@sa callback CWinBase m_mapWindowMap DynamicWindowProc DefWindowProc
+**/
 LRESULT CWinBase::StaticWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	// ポインタの宣言
 	CWinBase *pWindow = NULL;		// CWinBase オブジェクトポインタ pWindow
 
-									/* メッセージウィンドウ処理 */
+	/* メッセージウィンドウ処理 */
 	switch (uMsg) {
 		/* ウィンドウの作成が開始された時 */
 	case WM_CREATE:
@@ -181,7 +210,16 @@ LRESULT CWinBase::StaticWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 	}
 }
 
-// バージョン情報ボックスのメッセージ ハンドラーです。
+/** @brief メインウィンドウのメニューバーより，[ヘルプ(H)]->[バージョン情報(A)...]で呼び出されるダイアログの設定
+@note この関数は，メインウィンドウのメニューバーにある[ヘルプ(H)]->[バージョン情報(A)...]を選択した際に呼び出されるダイアログ
+についてのコールバック関数．
+@param hDlg		ウィンドウへのハンドル
+@param message		メッセージ
+@param wParam	追加のメッセージ情報：w-パラメータ
+@param lParam	追加のメッセージ情報：l-パラメータ
+@return	INT_PTR 関数の処理結果の成否
+@sa callback CWinBase UNREFERENCED_PARAMETER EndDialog
+**/
 INT_PTR CWinBase::About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
@@ -211,7 +249,7 @@ INT_PTR CWinBase::About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 @param hWndParent		親ウィンドウまたはオーナーウィンドウとなるハンドルを指定
 @param hMenu			メニューのハンドル
 @param hInstance		インスタンスハンドル
-@return	関数の処理結果の成否
+@return	BOOL 関数の処理結果の成否
 @sa CreateWindow SendMessage EnableWindow m_hWndViewTarget m_hwndSTATICPhase m_hwndTextBoxPhase m_hwndBUTTONPhase
 **/
 BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD dwStyle, const RECT & rect, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance) {
@@ -266,7 +304,7 @@ BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD d
 生成されていた場合，ウィンドウ作成の処理を実行する．
 @param lpctszWindowName	作成するウィンドウ名
 @param rect				作成するウィンドウのサイズ
-@return	関数の処理結果の成否
+@return	BOOL 関数の処理結果の成否
 @sa Create
 **/
 BOOL CWinBase::Create(LPCTSTR lpctszWindowName, const RECT & rect) {
@@ -283,7 +321,7 @@ BOOL CWinBase::Create(LPCTSTR lpctszWindowName, const RECT & rect) {
 /** @brief 本プログラムのメインプログラムの表示状態を変更する．
 @note この関数は，本プログラムのメインプログラムの表示状態を変更する．
 @param nCmdShow	ウィンドウの表示状態を表す定数(SW_SHOWで表示)
-@return	関数の処理結果の成否
+@return	BOOL 関数の処理結果の成否
 @sa ShowWindow
 **/
 BOOL CWinBase::ShowWindow(int nCmdShow) {
@@ -293,7 +331,16 @@ BOOL CWinBase::ShowWindow(int nCmdShow) {
 	return ::ShowWindow(m_hWnd, nCmdShow);	// WindowsAPIのShowWindowでm_hWndを表示.
 }
 
-/* ダイナミックウィンドウプロシージャ DynamicWindowProc */
+/** @brief ウィンドウオブジェクト用のウィンドウプロシージャ
+@note この関数は，ウィンドウオブジェクト専用のウィンドウプロシージャであり，StaticWindowProcによって呼び出される．
+メインウィンドウに関するコントロールのイベントについてはここで記述する．
+@param hWnd		ウィンドウへのハンドル
+@param uMsg		メッセージ
+@param wParam	追加のメッセージ情報：w-パラメータ
+@param lParam	追加のメッセージ情報：l-パラメータ
+@return	LRESULT エラーコードを返す
+@sa Create
+**/
 LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
 	switch (uMsg) {
@@ -408,16 +455,15 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 		default:
 			return DefWindowProc(hwnd, uMsg, wParam, lParam);
 		}
+		// 既定の処理
+		break;
 	}
-	// 既定の処理
-	break;
 	/* その他 */
 	default:
 	{
-
+		// 既定の処理
+		break;
 	}
-	// 既定の処理
-	break;
 	}
 
 	// DefWindowProcに任せる.
@@ -428,9 +474,9 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 @note この関数は，GetDir メソッドで設定したフォルダー名取得ダイアログ用のコールバック関数である．
 @param hWnd		ウィンドウへのハンドル
 @param uMsg		メッセージ
-@param lParam	追加のメッセージ情報：uMsgの値によって異なる
+@param lParam	追加のメッセージ情報：l-パラメータ
 @param lpData	フォルダ選択時の初期ディレクトリ
-@return 成功した場合は0を返す
+@return int 成功した場合は0を返す
 @sa http://yamatyuu.net/computer/program/sdk/common_dialog/SHBrowseForFolder/index.html
 **/
 int CWinBase::BrowseCallbackProc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
