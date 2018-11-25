@@ -3,7 +3,7 @@
 // Direct2D_RenderFlyCapImage.rc ‚ÅŽg—p
 //
 #define IDC_DIRECT2DRENDERFLYCAPIMAGE   101
-#define IDD_DIALOG1                     103
+#define IDD_DIAlog1                     103
 #define IDD_ABOUTBOX                    103
 #define IDS_APP_TITLE                   105
 #define IDI_ICON1                       108

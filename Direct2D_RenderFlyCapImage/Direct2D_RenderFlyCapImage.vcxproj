@@ -181,6 +181,9 @@
   <ItemGroup>
     <Image Include="icon_フォルダを参照.ico" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="DevelopmentNote.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

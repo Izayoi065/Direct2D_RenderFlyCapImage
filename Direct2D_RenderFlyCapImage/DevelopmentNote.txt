@@ -1,0 +1,12 @@
+Win32APIにて，メインシステムとダイアログ間のデータの受け渡し
+手づくりアプリの裏側 モーダルダイアログ
+http://yuzublo.blog48.fc2.com/blog-entry-58.html
+
+スピン（アップダウン）コントロール
+http://www.geocities.jp/midorinopage/Tips/spincontrol.html
+
+SendDlgItemMessage 関数
+https://msdn.microsoft.com/ja-jp/library/cc411002.aspx?f=255&MSPPError=-2147217396
+
+スピンコントロールの使い方
+https://clown.hatenablog.jp/entry/20110128/1296189737

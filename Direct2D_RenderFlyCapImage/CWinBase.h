@@ -39,12 +39,21 @@ private:
 	{
 		CID_TX_CapturePass = 12000,
 		CID_TX_FileName,
-		CID_TX_Log,
+		CID_TX_Console,
 		CID_TX_END,
 	};
+	typedef struct MyAdvancedSetting {
+		int TH_MIN_HUE;
+		int TH_MAX_HUE;
+		int TH_MIN_SATURATION;
+		int TH_MAX_SATURATION;
+		int TH_MIN_BRIGHTNESS;
+		int TH_MAX_BRIGHTNESS;
+	}MYADVANCEDSETTING;
 	HWND m_hwndTextBoxPhase[CID_TX_END];	// テキストボックス管理用の識別子
 	HWND m_hwndSTATICPhase[CID_ST_END];		// STATICコントロール管理用の識別子
 	HWND m_hwndBUTTONPhase[CID_BT_END];		// ボタン管理用の識別子
+	MYADVANCEDSETTING MASetting;
 	HBRUSH      m_hBrush_BkColor;   //背景の色
 public:
 	/* メンバ変数 */

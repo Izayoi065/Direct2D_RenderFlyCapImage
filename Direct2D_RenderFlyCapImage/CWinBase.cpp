@@ -30,6 +30,7 @@ CWinBase::CWinBase(CApplication * pApp) {
 	m_hWnd = NULL;	// m_hWndをNULL.
 	m_pApp = pApp;	// m_pAppをpApp.
 	m_hBrush_BkColor = CreateSolidBrush(RGB(0, 0, 0));	// STATICコントロールの背景
+	MASetting = { 0,255,0,255,0,255 };
 }
 
 /** @brief CWinBaseクラスのデストラクタ
@@ -267,28 +268,47 @@ INT_PTR CWinBase::About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 @param wParam	追加のメッセージ情報：w-パラメータ
 @param lParam	追加のメッセージ情報：l-パラメータ
 @return	INT_PTR 関数の処理結果の成否
-@sa callback CWinBase UNREFERENCED_PARAMETER EndDialog
+@sa callback CWinBase UNREFERENCED_PARAMETER SendDlgItemMessage EndDialog
 **/
 INT_PTR CWinBase::Setting(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
+	//MyOutputDebugString(L"\n	WM_COMMAND：%dを受け取りました\n\n", message);
 	TCHAR minHue[4], minSaturation[4], minBrightness[4], maxHue[4], maxSaturation[4], maxBrightness[4];
+	static MyAdvancedSetting* localMASetting;
 	switch (message)
 	{
 	case WM_INITDIALOG:
+		localMASetting = (MyAdvancedSetting*)lParam;
+		if (localMASetting)
+		{
+			MyOutputDebugString(L"\n////////////////////////////////////////////////////////////\n", message);
+			SendDlgItemMessage(hDlg, IDC_SPINMINHUE, UDM_SETRANGE, 0, (LPARAM)MAKELONG(0, 255));
+			SendDlgItemMessage(hDlg, IDC_EDITMINHUE, UDM_SETRANGE, 0, (LPARAM)MAKELONG(0, 255));
+			SendDlgItemMessage(hDlg, IDC_SPINMINHUE, UDM_SETPOS, 0, (LPARAM)MAKELONG(localMASetting->TH_MIN_HUE, 0));
+			SendDlgItemMessage(hDlg, IDC_SPINMAXHUE, UDM_SETRANGE, 0, (LPARAM)MAKELONG(0, 255));
+			SendDlgItemMessage(hDlg, IDC_SPINMAXHUE, UDM_SETPOS, 0, (LPARAM)MAKELONG(localMASetting->TH_MAX_HUE, 0));
+			SendDlgItemMessage(hDlg, IDC_SPINMINSATURATION, UDM_SETRANGE, 0, (LPARAM)MAKELONG(0, 255));
+			SendDlgItemMessage(hDlg, IDC_SPINMINSATURATION, UDM_SETPOS, 0, (LPARAM)MAKELONG(localMASetting->TH_MIN_SATURATION, 0));
+			SendDlgItemMessage(hDlg, IDC_SPINMAXSATURATION, UDM_SETRANGE, 0, (LPARAM)MAKELONG(0, 255));
+			SendDlgItemMessage(hDlg, IDC_SPINMAXSATURATION, UDM_SETPOS, 0, (LPARAM)MAKELONG(localMASetting->TH_MAX_SATURATION, 0));
+			SendDlgItemMessage(hDlg, IDC_SPINMINBRIGHTNESS, UDM_SETRANGE, 0, (LPARAM)MAKELONG(0, 255));
+			SendDlgItemMessage(hDlg, IDC_SPINMINBRIGHTNESS, UDM_SETPOS, 0, (LPARAM)MAKELONG(localMASetting->TH_MIN_BRIGHTNESS, 0));
+			SendDlgItemMessage(hDlg, IDC_SPINMAXBRIGHTNESS, UDM_SETRANGE, 0, (LPARAM)MAKELONG(0, 255));
+			SendDlgItemMessage(hDlg, IDC_SPINMAXBRIGHTNESS, UDM_SETPOS, 0, (LPARAM)MAKELONG(localMASetting->TH_MAX_BRIGHTNESS, 0));
+		}
 		return (INT_PTR)TRUE;
-
 	case WM_COMMAND:
 		if (LOWORD(wParam) == IDOK)
 		{
 			GetDlgItemText(hDlg, IDC_EDITMINHUE, minHue, sizeof(minHue));
-			GetDlgItemText(hDlg, IDC_EDITMINHUE, maxHue, sizeof(maxHue));
-			GetDlgItemText(hDlg, IDC_EDITMINHUE, minSaturation, sizeof(minSaturation));
-			GetDlgItemText(hDlg, IDC_EDITMINHUE, maxSaturation, sizeof(maxSaturation));
-			GetDlgItemText(hDlg, IDC_EDITMINHUE, minBrightness, sizeof(minBrightness));
-			GetDlgItemText(hDlg, IDC_EDITMINHUE, maxBrightness, sizeof(maxBrightness));
-			//SendMessage(GetParent(hDlg), )
-			MyOutputDebugString(L"%d", ::_ttoi(minHue));
+			GetDlgItemText(hDlg, IDC_EDITMANHUE, maxHue, sizeof(maxHue));
+			GetDlgItemText(hDlg, IDC_EDITMINSATURATION, minSaturation, sizeof(minSaturation));
+			GetDlgItemText(hDlg, IDC_EDITMAXSATURATION, maxSaturation, sizeof(maxSaturation));
+			GetDlgItemText(hDlg, IDC_EDITMINBRIGHTNESS, minBrightness, sizeof(minBrightness));
+			GetDlgItemText(hDlg, IDC_EDITMAXBRIGHTNESS, maxBrightness, sizeof(maxBrightness));
+			if (localMASetting)
+				*localMASetting = { ::_ttoi(minHue), ::_ttoi(maxHue), ::_ttoi(minSaturation), ::_ttoi(maxSaturation), ::_ttoi(minBrightness), ::_ttoi(maxBrightness) };
 			EndDialog(hDlg, LOWORD(wParam));
 			return (INT_PTR)TRUE;
 		}
@@ -353,10 +373,10 @@ BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD d
 	EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEnd], FALSE);
 
 	// ログのグループを作成
-	CreateWindow(L"BUTTON", L"Log", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 690, 210, 285, 325, m_hWnd, NULL, hInstance, NULL);
+	CreateWindow(L"BUTTON", L"Console", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 690, 210, 285, 325, m_hWnd, NULL, hInstance, NULL);
 	// テキストボックスを追加
-	m_hwndTextBoxPhase[CID_TX_Log] =
-		CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 695, 235, 275, 295, m_hWnd, (HMENU)CID_TX_Log, hInstance, NULL);
+	m_hwndTextBoxPhase[CID_TX_Console] =
+		CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 695, 235, 275, 295, m_hWnd, (HMENU)CID_TX_Console, hInstance, NULL);
 
 	// 成功ならTRUE.
 	return TRUE;
@@ -473,7 +493,13 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 			DialogBox(this->m_pApp->m_hInstance, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, About);
 			break;
 		case IDM_SETTING:
-			DialogBox(this->m_pApp->m_hInstance, MAKEINTRESOURCE(IDD_SETTINGBOX), hwnd, Setting);
+			DialogBoxParam(this->m_pApp->m_hInstance, MAKEINTRESOURCE(IDD_SETTINGBOX), hwnd, Setting, (LPARAM)&MASetting);
+			MyOutputDebugString(L"MASetting.TH_MIN_HUE:%d\n", MASetting.TH_MIN_HUE);
+			MyOutputDebugString(L"MASetting.TH_MAX_HUE:%d\n", MASetting.TH_MAX_HUE);
+			MyOutputDebugString(L"MASetting.TH_MIN_SATURATION:%d\n", MASetting.TH_MIN_SATURATION);
+			MyOutputDebugString(L"MASetting.TH_MAX_SATURATION:%d\n", MASetting.TH_MAX_SATURATION);
+			MyOutputDebugString(L"MASetting.TH_MIN_BRIGHTNESS:%d\n", MASetting.TH_MIN_BRIGHTNESS);
+			MyOutputDebugString(L"MASetting.TH_MAX_BRIGHTNESS:%d\n", MASetting.TH_MAX_BRIGHTNESS);
 				break;
 		case IDM_EXIT:
 			DestroyWindow(hwnd);
