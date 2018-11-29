@@ -12,10 +12,14 @@
  ****************************************************************************************************/
 /* 定義関数 */
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
+#define Def_MAXActiveRate 0.9f	// 入力画像の撮影された範囲の有効半径
 
 /* インクルードファイル */
 #include "CViewDirect2D.h"	// DirectX2D関連の初期化クラス
 #include "resource.h"		// リソースファイル
+
+/* staticメンバ変数の定義 */
+XMFLOAT3 CViewDirect2D::m_pV3PixToVec[CViewDirect2D::size*CViewDirect2D::size];	// staticメンバ変数CWinBase:: m_pV3PixToVecは宣言と別にここに定義しないといけない.
 
 /** @brief CViewDirect2Dクラスのコンストラクタ
 @note この関数は，このクラスが呼び出された際に，最初に実行される
@@ -32,8 +36,57 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 	pBrush = NULL;
 	pBitmap = NULL;	
 	memory = new byte[size * size * 4 * 5];	// 要素数：幅*高さ(pixel)*4(byte/pixel)が5ブロック
-	for (int i = 0;i < sizeof(memory);i++) {
+
+#pragma omp parallel for
+	for (int i = 0; i < sizeof(memory); i++) {
 		memory[i] = 0;
+	}
+
+	int NumRadius = (size / 2)*Def_MAXActiveRate;
+	int NumRadiusSq = NumRadius * NumRadius;
+#pragma omp parallel for
+	for (int x = 0; x<size; x++)
+	{
+		for (int y = 0; y < size; y++)
+		{
+			float tRad = (x - (size / 2)) * (x - (size / 2)) * (y - (size / 2)) * (y - (size / 2));
+			if (tRad < NumRadiusSq)
+				ActiveCameraArea[y*size + x] = true;
+			else
+				ActiveCameraArea[y*size + x] = false;
+		}
+	}
+
+	m_pNumAngle = (int*)malloc(sizeof(m_pNumAngle[0])*(int)NumRadius);
+	m_ppAngleX = (int **)malloc(sizeof(m_ppAngleX[0])*(int)NumRadius);
+	m_ppAngleY = (int **)malloc(sizeof(m_ppAngleY[0])*(int)NumRadius);
+#pragma omp parallel for
+	for (int IndexRad = 0; IndexRad < (int)NumRadius; IndexRad++)
+	{
+		m_pNumAngle[IndexRad] = (int)(2.0f*(IndexRad)*Def_PI);
+		m_ppAngleX[IndexRad] = (int *)malloc(sizeof(m_ppAngleX[0])*m_pNumAngle[IndexRad]);
+		m_ppAngleY[IndexRad] = (int *)malloc(sizeof(m_ppAngleY[0])*m_pNumAngle[IndexRad]);
+		for (int IndexAngle = 0; IndexAngle < (int)m_pNumAngle[IndexRad]; IndexAngle++)
+		{
+			m_ppAngleX[IndexRad][IndexAngle] = (int)((IndexRad)*cosf(2.0f*Def_PI*(float)IndexAngle / (float)m_pNumAngle[IndexRad]));
+			m_ppAngleY[IndexRad][IndexAngle] = (int)((IndexRad)*sinf(2.0f*Def_PI*(float)IndexAngle / (float)m_pNumAngle[IndexRad]));
+		}
+	}
+
+#pragma omp parallel for
+	for (int y = 0; y<size; y++)
+	{
+		for (int x = 0; x < size; x++)
+		{
+			float tX = IndexToFloat(x, -0.5f, 1.0f / size);
+			float tZ = IndexToFloat(y, -0.5f, 1.0f / size);
+			float tY = atan2f(tX, tZ);
+			float tP = sqrtf(tX*tX + tZ * tZ)*Def_PI;
+
+			m_pV3PixToVec[y*size + x].x = sinf(tY)*sinf(tP);
+			m_pV3PixToVec[y*size + x].y = cosf(tP);
+			m_pV3PixToVec[y*size + x].z = cosf(tY)*sinf(tP);
+		}
 	}
 }
 
@@ -45,6 +98,9 @@ CViewDirect2D::~CViewDirect2D()
 {
 	MyOutputDebugString(L"	~ViewDirectX11()が呼び出されました！\n");
 	delete[] memory;
+	free(m_ppAngleY);
+	free(m_ppAngleX);
+	free(m_pNumAngle);
 	ReleaseD2D();
 }
 
@@ -160,10 +216,36 @@ void CViewDirect2D::copyImageToMemory(cv::InputArray image_, byte* data, int num
 void CViewDirect2D::handExtractor(cv::InputArray inImage_, cv::OutputArray outImage_)
 {
 	cv::Mat inImage = inImage_.getMat();
-	cv::Mat hev_mask, dstImage;
-	cv::cvtColor(inImage, dstImage, CV_BGR2HSV);
-	cv::inRange(dstImage, hsv_min, hsv_max, hev_mask);
-	cv::cvtColor(hev_mask, dstImage, CV_GRAY2BGR);
+	cv::Mat mgray, gaussianImage, binImage, hev_mask, dstImage;
+	cv::cvtColor(inImage, mgray, CV_BGR2GRAY);
+	cv::GaussianBlur(mgray, gaussianImage, cv::Size(1, 1), 0, 0);
+	cv::threshold(gaussianImage, binImage, 55, 255, cv::THRESH_BINARY);
+	//cv::cvtColor(inImage, dstImage, CV_BGR2HSV);
+	//cv::inRange(dstImage, hsv_min, hsv_max, hev_mask);
+	//cv::cvtColor(hev_mask, dstImage, CV_GRAY2BGR);
+	cv::cvtColor(binImage, dstImage, CV_GRAY2BGR);
+	MyOutputDebugString(L"");
+
+	dstImage.copyTo(outImage_);
+}
+
+void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outImage_)
+{
+	cv::Mat inImage = inImage_.getMat();
+	cv::Mat single_chImage, dstImage;
+	inImage.copyTo(dstImage);
+	cv::cvtColor(inImage, single_chImage, CV_BGR2GRAY);
+
+	cv::Moments mu = cv::moments(single_chImage, false);
+	cv::Point2f mc = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
+	m_handInfo.hand2DPosX = (int)mc.x;
+	m_handInfo.hand2DPosY = (int)mc.y;
+
+	m_handInfo.hand3DPosX = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].x;
+	m_handInfo.hand3DPosY = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].y;
+	m_handInfo.hand3DPosZ = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].z;
+
+	cv::circle(dstImage, cv::Point(m_handInfo.hand2DPosX, m_handInfo.hand2DPosY), 5, cv::Scalar(0, 255, 0), -1, CV_AA);
 
 	dstImage.copyTo(outImage_);
 }
@@ -210,18 +292,24 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	HRESULT hResult = S_OK;
 	/* ①cv::Mat形式で画像を取得 */
 	renderImage01 = image_.getMat();	// カメラからの入力画像
-	cv::threshold(renderImage01, renderImage02, 100, 255, cv::THRESH_BINARY);
+	//cv::threshold(renderImage01, renderImage02, 100, 255, cv::THRESH_BINARY);
 
 	/* ②手指領域のみを抽出する */
 	handExtractor(renderImage01, renderImage02);
 	/* ③掌の中心位置を推定する */
+	CalcHandCentroid(renderImage02, renderImage03);
+	MyOutputDebugString(L"m_handInfo.hand2DPosX:%d\n", m_handInfo.hand2DPosX);
+	MyOutputDebugString(L"m_handInfo.hand2DPosY:%d\n", m_handInfo.hand2DPosY);
+	MyOutputDebugString(L"m_handInfo.hand3DPosX:%f\n", m_handInfo.hand3DPosX);
+	MyOutputDebugString(L"m_handInfo.hand3DPosY:%f\n", m_handInfo.hand3DPosY);
+	MyOutputDebugString(L"m_handInfo.hand3DPosZ:%f\n", m_handInfo.hand3DPosZ);
 	/* ④手指の状態を解析する */
 	/* ⑤インプットモードのモデルを作成 */
 
 	/* 画像データを確保済みのメモリ上へ書き込み */
 	copyImageToMemory(renderImage01, this->memory, 1);	// ①カメラからの入力画像をメモリ上に配置
 	copyImageToMemory(renderImage02, this->memory, 2);	// ②手指領域の抽出画像をメモリ上に配置
-	copyImageToMemory(renderImage01, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
+	copyImageToMemory(renderImage03, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
 	copyImageToMemory(renderImage01, this->memory, 4);	// ④解析情報の取得画像をメモリ上に配置
 	copyImageToMemory(renderImage01, this->memory, 5);	// ⑤インプットモードの判別画像をメモリ上に配置
 

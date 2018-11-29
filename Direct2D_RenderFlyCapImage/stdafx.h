@@ -13,7 +13,7 @@
 #define CV_EXT ".lib"
 #define FC2_EXT ".lib"
 #endif
-#pragma comment(lib,"winmm.lib")
+#pragma comment( lib, "winmm.lib")
 #pragma comment( lib, "d2d1.lib")
 #pragma comment( lib, "dwrite.lib" )
 #pragma comment( lib, "opencv_world340" CV_EXT)
@@ -30,6 +30,9 @@
 #else
 #    define MyOutputDebugString( str, ... ) // ‹óŽÀ‘•
 #endif
+#define Def_PI				3.1415f
+#define FloatToIndex(f4_tPos,f4_tBase,f4_tPitch) (((f4_tPos) - (f4_tBase))/(f4_tPitch))
+#define IndexToFloat(f4_tIndex,f4_tBase,f4_tPitch) ((f4_tIndex)*(f4_tPitch) + (f4_tPitch)/2.0f + (f4_tBase))
 
 #include "targetver.h"
 
@@ -57,6 +60,7 @@
 /* DirectX11ŠÖ˜A */
 #include <d2d1.h>
 #include <dwrite.h>
+//#include <DirectXMath.h>
 
 /* OpenCVŠÖ˜A */
 #include "opencv2/core.hpp"

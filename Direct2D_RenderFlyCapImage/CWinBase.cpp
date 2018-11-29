@@ -30,7 +30,9 @@ CWinBase::CWinBase(CApplication * pApp) {
 	m_hWnd = NULL;	// m_hWndをNULL.
 	m_pApp = pApp;	// m_pAppをpApp.
 	m_hBrush_BkColor = CreateSolidBrush(RGB(0, 0, 0));	// STATICコントロールの背景
-	MASetting = { 0,255,0,255,0,255 };
+	MASetting = { 2,13,115,255,0,160 };
+	hsv_min = cv::Scalar(MASetting.TH_MIN_HUE, MASetting.TH_MIN_SATURATION, MASetting.TH_MIN_BRIGHTNESS);
+	hsv_max = cv::Scalar(MASetting.TH_MAX_HUE, MASetting.TH_MAX_SATURATION, MASetting.TH_MAX_BRIGHTNESS);
 }
 
 /** @brief CWinBaseクラスのデストラクタ
@@ -417,7 +419,8 @@ BOOL CWinBase::ShowWindow(int nCmdShow) {
 /** @brief ウィンドウオブジェクト用のウィンドウプロシージャ
 @note この関数は，ウィンドウオブジェクト専用のウィンドウプロシージャであり，StaticWindowProcによって呼び出される．
 メインウィンドウに関するコントロールのイベントについてはここで記述する．
-@param hWnd		ウィンドウへのハンドル
+@
+m hWnd		ウィンドウへのハンドル
 @param uMsg		メッセージ
 @param wParam	追加のメッセージ情報：w-パラメータ
 @param lParam	追加のメッセージ情報：l-パラメータ
@@ -494,6 +497,8 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 			break;
 		case IDM_SETTING:
 			DialogBoxParam(this->m_pApp->m_hInstance, MAKEINTRESOURCE(IDD_SETTINGBOX), hwnd, Setting, (LPARAM)&MASetting);
+			hsv_min = cv::Scalar(MASetting.TH_MIN_HUE, MASetting.TH_MIN_SATURATION, MASetting.TH_MIN_BRIGHTNESS);
+			hsv_max = cv::Scalar(MASetting.TH_MAX_HUE, MASetting.TH_MAX_SATURATION, MASetting.TH_MAX_BRIGHTNESS);
 			MyOutputDebugString(L"MASetting.TH_MIN_HUE:%d\n", MASetting.TH_MIN_HUE);
 			MyOutputDebugString(L"MASetting.TH_MAX_HUE:%d\n", MASetting.TH_MAX_HUE);
 			MyOutputDebugString(L"MASetting.TH_MIN_SATURATION:%d\n", MASetting.TH_MIN_SATURATION);

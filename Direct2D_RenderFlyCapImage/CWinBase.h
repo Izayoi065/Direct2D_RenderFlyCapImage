@@ -62,8 +62,8 @@ public:
 	CApplication * m_pApp;	// アプリケーションオブジェクトポインタm_pApp
 	cv::VideoWriter writer; //ビデオに書き込む変数
 	BOOL flagCapture = false;
-	cv::Scalar hsv_min = cv::Scalar(0, 0, 120);
-	cv::Scalar hsv_max = cv::Scalar(180, 255, 150);
+	cv::Scalar hsv_min;
+	cv::Scalar hsv_max;
 	static std::map<HWND, CWinBase *> m_mapWindowMap;	// ウィンドウハンドルからウィンドウオブジェクトを引くマップ.
 
 public:
