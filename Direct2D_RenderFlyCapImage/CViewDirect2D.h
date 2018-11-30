@@ -9,6 +9,8 @@ class FlyCap2CVWrapper;
 class CViewDirect2D :
 	public CWinBase
 {
+#define Def_NumPressure 16
+#define Def_NumSmpR 8//サンプリングのための同心円テーブルの個数
 	/* 入力モード */
 	enum Hand_InputMode
 	{
@@ -79,13 +81,23 @@ public:
 	int *m_pNumAngle;	// 円形テーブルの各半径に対する円周の長さ（サンプリング点の数）
 	int **m_ppAngleX;	// サンプリング点のX位置
 	int **m_ppAngleY;	// サンプリング点のY位置
+	int FingerWidth;	// 画像上での指の幅
+	float *ppf4_Sample[Def_NumSmpR];//
+	float *ppf4_SampleS[Def_NumSmpR];//
+	int *ppi4_Peek[Def_NumSmpR];//
+	XMFLOAT2 pV2_Radio[Def_NumPressure];
 	cv::Mat renderImage01;		// ①カメラからの入力画像
 	cv::Mat renderImage02;		// ②手指領域の抽出画像
 	cv::Mat renderImage03;		// ③掌の中心位置の推定画像
 	cv::Mat renderImage04;		// ④解析情報の取得画像
 	cv::Mat renderImage05;		// ⑤インプットモードの判別画像
 	unsigned char ActiveCameraArea[size*size];	// カメラで撮影された範囲
+	float ppf4_Hue[size*size];
+	float ppf4_Saturation[size*size];
+	float ppf4_Value[size*size];
 	S_HANDINF m_handInfo;
+	float FixX[size*size];
+	float FixY[size*size];
 public:
 	CViewDirect2D(CApplication *pApp);
 	~CViewDirect2D();
@@ -94,6 +106,15 @@ public:
 	void copyImageToMemory(cv::InputArray image_, byte* data, int num);
 	void handExtractor(cv::InputArray inImage_, cv::OutputArray outImage_);
 	void CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outImage_);
+	void AnalyzeHandInf(cv::InputArray inImage_, cv::OutputArray outImage_);
+	int detectFinger2to5(int tCenterX, int tCenterY, cv::InputArray likelihoodArea, float *p_HueImage,
+		float *p_SaturationImage, float *ValueImage, S_HANDINF *pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_);
+	int FindChain(int tCenterX, int tCenterY, int Line2CircleR, int MinR, int MaxR, int NumSmpR,
+		float TergetAng, float SearchAng, float *pf4_tLikelihood, float *pf4_tH_In, float *pf4_tS_In, float *pf4_tV_In,
+		cv::InputArray inImage_, cv::OutputArray outImage_, XMFLOAT2 *pV2_tChainRoot, XMFLOAT2 *pV2_tChainVec, float *pf4_tChainLen);
+	void LeastSquares(XMVECTOR *pV2_tPos, int lenC, XMVECTOR *pV2_tRoot, XMVECTOR *pV2_tTop);
+	void Line2Circle(float tCX, float tCY, float tR, XMVECTOR *pV2_t0, XMVECTOR V2_t1);
+	int FindGroup2to5(int tChainSize, XMFLOAT2 *pV2_tChainRoot, XMFLOAT2 *pV2_tChainVec, float *tChainLen, S_HANDINF *pHandInf_t);
 	HRESULT AppIdle(cv::InputArray image_, double fps);
 	HRESULT	Render(cv::InputArray image_, double fps);
 	//void DrawPix(cv::InputArray inImage_);

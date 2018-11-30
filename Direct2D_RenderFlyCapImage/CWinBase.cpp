@@ -30,7 +30,7 @@ CWinBase::CWinBase(CApplication * pApp) {
 	m_hWnd = NULL;	// m_hWndÇNULL.
 	m_pApp = pApp;	// m_pAppÇpApp.
 	m_hBrush_BkColor = CreateSolidBrush(RGB(0, 0, 0));	// STATICÉRÉìÉgÉçÅ[ÉãÇÃîwåi
-	MASetting = { 2,13,115,255,0,160 };
+	MASetting = { 0,60,120,180,100,255 };
 	hsv_min = cv::Scalar(MASetting.TH_MIN_HUE, MASetting.TH_MIN_SATURATION, MASetting.TH_MIN_BRIGHTNESS);
 	hsv_max = cv::Scalar(MASetting.TH_MAX_HUE, MASetting.TH_MAX_SATURATION, MASetting.TH_MAX_BRIGHTNESS);
 }

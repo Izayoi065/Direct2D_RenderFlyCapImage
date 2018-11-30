@@ -31,6 +31,7 @@
 #    define MyOutputDebugString( str, ... ) // ‹óŽÀ‘•
 #endif
 #define Def_PI				3.1415f
+#define Def_FOV (Def_PI*0.85f)
 #define FloatToIndex(f4_tPos,f4_tBase,f4_tPitch) (((f4_tPos) - (f4_tBase))/(f4_tPitch))
 #define IndexToFloat(f4_tIndex,f4_tBase,f4_tPitch) ((f4_tIndex)*(f4_tPitch) + (f4_tPitch)/2.0f + (f4_tBase))
 

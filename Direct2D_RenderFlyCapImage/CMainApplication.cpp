@@ -187,9 +187,9 @@ int CMainApplication::Run() {
 			}
 			/* ƒŒƒ“ƒ_ƒŠƒ“ƒOˆ— */
 			fps = FPS.GetFPS();
-			//image = FlyCap.readImage();
-			image = cv::imread("data/resources/handImage02.png");
-			//cv::resize(image, image, cv::Size(), 0.5, 0.5);
+			image = FlyCap.readImage();
+			//image = cv::imread("data/resources/handImage02.png");
+			cv::resize(image, image, cv::Size(), 0.5, 0.5);
 			hr = this->m_pWindow->AppIdle(image, fps);
 		}
 	}
