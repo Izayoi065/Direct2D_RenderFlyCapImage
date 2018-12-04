@@ -19,6 +19,11 @@
 #define Def_MAXActiveRate 0.9f	// 入力画像の撮影された範囲の有効半径
 #define Hand_DomeR 0.1f			//アクリルドームの半径
 
+#define Def_Finger0_VScale 0.1f
+#define Def_Finger0_NScale 0.8f
+#define Def_Finger0_SearchOfs 0.175f
+#define Def_Finger0_SearchAng 0.125f
+
 /* インクルードファイル */
 #include "CViewDirect2D.h"	// DirectX2D関連の初期化クラス
 #include "resource.h"		// リソースファイル
@@ -26,6 +31,7 @@
 /* staticメンバ変数の定義 */
 XMFLOAT3 CViewDirect2D::m_pV3PixToVec[CViewDirect2D::size*CViewDirect2D::size];	// staticメンバ変数CWinBase:: m_pV3PixToVecは宣言と別にここに定義しないといけない.
 float *ppi4_Peek[Def_NumSmpR];//
+
 /** @brief CViewDirect2Dクラスのコンストラクタ
 @note この関数は，このクラスが呼び出された際に，最初に実行される
 @param pApp	CApplicationクラスのオブジェクト
@@ -47,7 +53,7 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 		memory[i] = 0;
 	}
 
-	int NumRadius = (size / 2)*Def_MAXActiveRate;
+	NumRadius = (size / 2)*Def_MAXActiveRate;
 	int NumRadiusSq = NumRadius * NumRadius;
 #pragma omp parallel for
 	for (int x = 0; x<size; x++)
@@ -311,7 +317,10 @@ void CViewDirect2D::AnalyzeHandInf(cv::InputArray inImage_, cv::OutputArray outI
 	/* 第2指～第5指の検出 */
 	detectFinger2to5(size / 2, size / 2, renderImage02, ppf4_Hue, ppf4_Saturation, ppf4_Value, &m_handInfo, inImage, dstImage);
 	/* 第1指付け根の推定 */
+	//EstimateFinger1Root
 	/* 第1指の検出 */
+	//if (detectFinger1()
+		//return 0;
 	/* 入力モードの判定 */
 	/* 手指の距離検出 */
 	/* 各ポイントでの圧力検出 */
@@ -320,16 +329,30 @@ void CViewDirect2D::AnalyzeHandInf(cv::InputArray inImage_, cv::OutputArray outI
 	dstImage.copyTo(outImage_);
 }
 
+/** @brief 第2指～第5指の検出を行う
+@note この関数は，
+@param tCenterX
+@param tCenterY	
+@param likelihoodArea
+@param p_HueImage			入力画像の彩度(H値：Hue)成分を抽出した画像
+@param p_SaturationImage	入力画像の彩度(S値：Saturation)成分を抽出した画像
+@param ValueImage			入力画像の彩度(V値：Value)成分を抽出した画像
+@param pHandInf_t
+@param inImage_
+@param outImage_
+@sa cv::moments m_handInfo
+**/
 int CViewDirect2D::detectFinger2to5(int tCenterX, int tCenterY, cv::InputArray likelihoodArea, 
 	float * p_HueImage, float * p_SaturationImage, float * ValueImage, S_HANDINF * pHandInf_t,cv::InputArray inImage_, cv::OutputArray outImage_)
 {
 	cv::Mat inImage = inImage_.getMat();
+	cv::Mat likelihoodImage = likelihoodArea.getMat();
 	cv::Mat binImage, dstImage;
-	cv::cvtColor(inImage, binImage, CV_BGR2GRAY);
+	cv::cvtColor(likelihoodImage, binImage, CV_BGR2GRAY);
 	XMFLOAT2 pV2_ChainRoot[Def_MaxChain];
 	XMFLOAT2 pV2_ChainVec[Def_MaxChain];
 	float p_ChainLen[Def_MaxChain];
-	int paramR = (int)((size*pHandInf_t->handRotate) / (Hand_DomeR*Def_FOV));
+	int paramR = (int)((size*pHandInf_t->handRadius) / (Hand_DomeR*Def_FOV));
 
 	int SampleGap = 8;
 	int MinR = paramR + SampleGap;
@@ -695,6 +718,14 @@ int CViewDirect2D::FindChain(int tCenterX, int tCenterY, int Line2CircleR, int M
 	return 0;
 }
 
+/** @brief 基準点を最小二乗法で求める
+@note この関数は，
+@param *pV2_tPos	
+@param lenC			
+@param *pV2_tRoot	
+@param *pV2_tTop	
+@sa
+**/
 void CViewDirect2D::LeastSquares(XMVECTOR * pV2_tPos, int lenC, XMVECTOR * pV2_tRoot, XMVECTOR * pV2_tTop)
 {
 	float pf4_tX1[Def_NumSmpR];
@@ -764,7 +795,372 @@ void CViewDirect2D::Line2Circle(float tCX, float tCY, float tR, XMVECTOR * pV2_t
 
 int CViewDirect2D::FindGroup2to5(int tChainSize, XMFLOAT2 * pV2_tChainRoot, XMFLOAT2 * pV2_tChainVec, float * tChainLen, S_HANDINF * pHandInf_t)
 {
+	// 各指の付け根の間隔を計算
+	int tIndexFinger[4];
+	float tGapLen[Def_MaxChain];
+	XMFLOAT2 tempFloat;
+	XMVECTOR tempVec;
+
+#pragma omp parallel for
+	for(int tIndexC = 0;tIndexC < tChainSize ; tIndexC++) {
+		if (tIndexC == tChainSize - 1) {
+			tempVec = XMVector2Length(XMLoadFloat2(&pV2_tChainVec[tIndexC]) - XMLoadFloat2(&pV2_tChainVec[0]));
+			XMStoreFloat2(&tempFloat, tempVec);
+			tGapLen[tIndexC] = tempFloat.x;
+		}
+		else {
+			tempVec = XMVector2Length(XMLoadFloat2(&pV2_tChainVec[tIndexC]) - XMLoadFloat2(&pV2_tChainVec[tIndexC+1]));
+			XMStoreFloat2(&tempFloat, tempVec);
+			tGapLen[tIndexC] = tempFloat.x;
+		}
+	}
+
+	float MinGap = FLT_MAX;
+#pragma omp parallel for
+	for (int tIndexC = 0; tIndexC < tChainSize; tIndexC++) {
+		float SumGap = tGapLen[tIndexC];
+		int tIndexC1 = tIndexC + 1;
+		if (tChainSize <= tIndexC1)
+			tIndexC1 -= tChainSize;
+		SumGap += tGapLen[tIndexC1];
+		
+		int tIndexC2 = tIndexC + 2;
+		if (tChainSize <= tIndexC2)
+			tIndexC2 -= tChainSize;
+		SumGap += tGapLen[tIndexC2];
+
+		int tIndexC3 = tIndexC + 3;
+		if (tChainSize <= tIndexC3)
+			tIndexC3 -= tChainSize;
+
+		if (SumGap < MinGap) {
+			MinGap = SumGap;
+			tIndexFinger[0] = tIndexC;
+			tIndexFinger[1] = tIndexC1;
+			tIndexFinger[2] = tIndexC2;
+			tIndexFinger[3] = tIndexC3;
+		}
+	}
+
+	int tParamR = (int)((size*pHandInf_t->handRadius) / (Hand_DomeR*Def_FOV));
+	if ((float)tParamR * 2 * Def_PI*0.25f < MinGap && MinGap < (float)tParamR * 2 * Def_PI*0.45f) {
+#pragma omp parallel for
+		for (int tIndexF = 0;tIndexF < 4 ; tIndexF++) {
+			pHandInf_t->pFI[tIndexF + 1].pf4_PosX[Hand_JointRoot] = pV2_tChainRoot[tIndexFinger[tIndexF]].x;
+			pHandInf_t->pFI[tIndexF + 1].pf4_PosY[Hand_JointRoot] = pV2_tChainRoot[tIndexFinger[tIndexF]].y;
+			pHandInf_t->pFI[tIndexF + 1].pf4_PosX[Hand_JointTop] = 
+				pHandInf_t->pFI[tIndexF + 1].pf4_PosX[Hand_JointRoot] + tChainLen[tIndexFinger[tIndexF]] * pV2_tChainVec[tIndexFinger[tIndexF]].x;
+			pHandInf_t->pFI[tIndexF + 1].pf4_PosY[Hand_JointTop] = 
+				pHandInf_t->pFI[tIndexF + 1].pf4_PosY[Hand_JointRoot] + tChainLen[tIndexFinger[tIndexF]] * pV2_tChainVec[tIndexFinger[tIndexF]].y;
+		}
+		return 4;
+	}
 	return 0;
+}
+
+void CViewDirect2D::EstimateFinger1Root(int * tRootX0, int * tRootY0, float * tTargetAngle0, int * tRootX1, int * tRootY1, float * tTargetAngle1, S_HANDINF * pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_)
+{
+	cv::Mat dstImage = inImage_.getMat();
+
+	XMFLOAT2 F2_tV = XMFLOAT2(
+		pHandInf_t->pFI[1].pf4_PosX[Hand_JointRoot] - pHandInf_t->pFI[4].pf4_PosX[Hand_JointRoot],
+		pHandInf_t->pFI[1].pf4_PosY[Hand_JointRoot] - pHandInf_t->pFI[4].pf4_PosY[Hand_JointRoot]);
+
+	XMFLOAT2 F2_tN = XMFLOAT2(
+		-pHandInf_t->pFI[1].pf4_PosY[Hand_JointRoot] + pHandInf_t->pFI[4].pf4_PosY[Hand_JointRoot],
+		+pHandInf_t->pFI[1].pf4_PosX[Hand_JointRoot] - pHandInf_t->pFI[4].pf4_PosX[Hand_JointRoot]);
+
+	*tRootX0 = pHandInf_t->pFI[1].pf4_PosX[Hand_JointRoot] - F2_tV.x*Def_Finger0_VScale - F2_tN.x*Def_Finger0_NScale;
+	*tRootY0 = pHandInf_t->pFI[1].pf4_PosY[Hand_JointRoot] - F2_tV.y*Def_Finger0_VScale - F2_tN.y*Def_Finger0_NScale;
+	cv::circle(dstImage, cv::Point((int)tRootX0, (int)tRootY0), 5, cv::Scalar(255, 0, 0), -1, CV_AA);
+
+	*tRootX1 = pHandInf_t->pFI[4].pf4_PosX[Hand_JointRoot] + F2_tV.x*Def_Finger0_VScale - F2_tN.x*Def_Finger0_NScale;
+	*tRootY1 = pHandInf_t->pFI[4].pf4_PosY[Hand_JointRoot] + F2_tV.y*Def_Finger0_VScale - F2_tN.y*Def_Finger0_NScale;
+	cv::circle(dstImage, cv::Point((int)tRootX1, (int)tRootY1), 5, cv::Scalar(255, 0, 0), -1, CV_AA);
+
+	XMVECTOR V2_tN = XMLoadFloat2(&F2_tN);
+	V2_tN = XMVector2Normalize(V2_tN);
+	XMFLOAT2 F2_tNAft;
+	XMStoreFloat2(&F2_tNAft, V2_tN);
+	float tNAngle = atan2f(F2_tNAft.x, F2_tNAft.y) / (2.0f*Def_PI);
+	if (tNAngle < 0.0f)
+		tNAngle += 1.0f;
+	*tTargetAngle0 = tNAngle - Def_Finger0_SearchOfs;
+	if (*tTargetAngle0 < 0.0f)
+		*tTargetAngle0 += 1.0f;
+	*tTargetAngle1 = tNAngle + Def_Finger0_SearchOfs;
+	if (1.0f < *tTargetAngle1)
+		*tTargetAngle1 -= 1.0f;
+
+	dstImage.copyTo(outImage_);
+}
+
+int CViewDirect2D::detectFinger1(cv::InputArray likelihoodArea, float * p_HueImage, float * p_SaturationImage, float * ValueImage, S_HANDINF * pHandInf_t,
+	int tRootX0, int tRootY0, float tTergetAngle0, int tRootX1, int tRootY1, float tTergetAngle1, cv::InputArray inImage_, cv::OutputArray outImage_)
+{
+	cv::Mat inImage = inImage_.getMat();
+	cv::Mat likelihoodImage = likelihoodArea.getMat();
+	cv::Mat binImage, dstImage;
+	cv::cvtColor(likelihoodImage, binImage, CV_BGR2GRAY);
+
+	int tParamR = (int)((size*pHandInf_t->handRadius) / (Hand_DomeR*Def_FOV));
+	XMFLOAT2 pV2_ChainRoot[Def_MaxChain];
+	XMFLOAT2 pV2_ChainVec[Def_MaxChain];
+	float tChainLen[Def_MaxChain];
+	XMFLOAT2 V2_tFingerRoot0, V2_tFingerRoot1;
+	XMFLOAT2 V2_tFingerVec0, V2_tFingerVec1;
+	float tFingerLen0, tFingerLen1;
+
+	int lr = 0;
+
+	int tMinR = tParamR * 0.75f;
+	int tMaxR = tParamR * 2.0f;
+	if (NumRadius <= tMaxR)
+		tMaxR = NumRadius - 1;
+
+	float tlikelihoodArea[size*size];
+#pragma omp parallel for	 // HSVの各チャンネルをfloat型(0～1)で取得
+	for (int row = 0; row < size; row++) {
+		cv::Vec3b *src = binImage.ptr<cv::Vec3b>(row);
+		for (int col = 0; col < size; col++) {
+			cv::Vec3b bin = src[col];
+			int pointBGR = row * size + col;
+			tlikelihoodArea[pointBGR] = (byte)bin[0] / 255;
+		}
+	}
+
+	int tNumChain0 = FindChain(tRootX0, tRootY0, (int)(tParamR*0.5f), tMinR, tMaxR, Def_NumSmpR, tTergetAngle0, Def_Finger0_SearchAng,
+		tlikelihoodArea, p_HueImage, p_SaturationImage, ValueImage, inImage, dstImage, pV2_ChainRoot, pV2_ChainVec, tChainLen);
+	float tLikelihood0 = FindOne(tTergetAngle0, tNumChain0, pV2_ChainRoot, pV2_ChainVec, tChainLen, &V2_tFingerRoot0, &V2_tFingerVec0, &tFingerLen0);
+	cv::circle(dstImage, cv::Point((int)(V2_tFingerRoot0.x + V2_tFingerVec0.x * tFingerLen0), (int)(V2_tFingerRoot0.y + V2_tFingerVec0.y * tFingerLen0)), 5, cv::Scalar(255, 0, 0), -1, CV_AA);
+
+	int tNumChain1 = FindChain(tRootX1, tRootY1, (int)(tParamR*0.5f), tMinR, tMaxR, Def_NumSmpR, tTergetAngle1, Def_Finger0_SearchAng,
+		tlikelihoodArea, p_HueImage, p_SaturationImage, ValueImage, inImage, dstImage, pV2_ChainRoot, pV2_ChainVec, tChainLen);
+	float tLikelihood1 = FindOne(tTergetAngle1, tNumChain1, pV2_ChainRoot, pV2_ChainVec, tChainLen, &V2_tFingerRoot1, &V2_tFingerVec1, &tFingerLen1);
+	cv::circle(dstImage, cv::Point((int)(V2_tFingerRoot1.x + V2_tFingerVec1.x * tFingerLen1), (int)(V2_tFingerRoot1.y + V2_tFingerVec1.y * tFingerLen1)), 5, cv::Scalar(255, 0, 0), -1, CV_AA);
+
+	if (tLikelihood0 < tLikelihood1) {
+		if (cosf(Def_Finger0_SearchAng*2.0f*Def_PI) < tLikelihood1) {
+
+		}
+	}
+	else {
+		if (cosf(Def_Finger0_SearchAng*2.0f*Def_PI) < tLikelihood0) {
+			pHandInf_t->pFI[0].pf4_PosX[Hand_JointRoot] = V2_tFingerRoot0.x;
+			pHandInf_t->pFI[0].pf4_PosY[Hand_JointRoot] = V2_tFingerRoot0.y;
+			pHandInf_t->pFI[0].pf4_PosX[Hand_JointTop] = pHandInf_t->pFI[0].pf4_PosX[Hand_JointRoot] + tFingerLen0 * V2_tFingerVec0.x;
+			pHandInf_t->pFI[0].pf4_PosY[Hand_JointTop] = pHandInf_t->pFI[0].pf4_PosY[Hand_JointRoot] + tFingerLen0 * V2_tFingerVec0.y;
+			pHandInf_t->handRotate = atan2f(
+				pHandInf_t->pFI[1].pf4_PosY[Hand_JointTop] - pHandInf_t->pFI[4].pf4_PosY[Hand_JointTop], 
+				pHandInf_t->pFI[1].pf4_PosX[Hand_JointTop] - pHandInf_t->pFI[4].pf4_PosX[Hand_JointTop]) / (Def_PI*2.0f);
+
+#pragma omp parallel for
+			for (int tIndexFinger = 0; tIndexFinger < 5; tIndexFinger++) {
+				pHandInf_t->pFI[tIndexFinger].f4_Rotate = atan2f(
+					pHandInf_t->pFI[tIndexFinger].pf4_PosY[Hand_JointTop] - pHandInf_t->pFI[tIndexFinger].pf4_PosY[Hand_JointRoot],
+					pHandInf_t->pFI[tIndexFinger].pf4_PosX[Hand_JointTop] - pHandInf_t->pFI[tIndexFinger].pf4_PosX[Hand_JointRoot]) / (Def_PI*2.0f);
+			}
+			pHandInf_t->e_LeftRight = Hand_Left;
+			Hand_LeftRight_Smoothing(pHandInf_t);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+float CViewDirect2D::FindOne(float tTargetAngle, int tChainSize, XMFLOAT2 * pV2_ChainRoot, XMFLOAT2 * pV2_tChainVec, float * tChainLen, XMFLOAT2 * pV2_tFingerRoot, XMFLOAT2 * pV2_tFingerVec, float *tFingerLen)
+{
+	XMFLOAT2 F2_tTarget = XMFLOAT2(cosf(tTargetAngle*2.0f*Def_PI), sinf(tTargetAngle*2.0f*Def_PI));
+	XMFLOAT2 F2_temp;
+	float tMaxCos = -1.0f;
+
+#pragma omp parallel for
+	for (int tIndexC = 0; tIndexC < tChainSize; tIndexC++) {
+		XMStoreFloat2(&F2_temp, XMVector2Dot(XMLoadFloat2(&F2_tTarget), XMLoadFloat2(&pV2_tChainVec[tIndexC])));
+		float tCos = F2_temp.x;
+		if (tMaxCos < tCos) {
+			tMaxCos = tCos;
+			pV2_tFingerRoot[0] = pV2_ChainRoot[tIndexC];
+			pV2_tFingerVec[0] = pV2_tChainVec[tIndexC];
+			tFingerLen[0] = tChainLen[tIndexC];
+		}
+	}
+	return tMaxCos;
+}
+
+void CViewDirect2D::Hand_LeftRight_Smoothing(S_HANDINF * pHandInf_t)
+{
+	int LR[3] = {0, 0};
+
+#pragma omp parallel for
+	for (int lr = 0; lr < 4; lr++) {
+		if (pHandInf_t->e_LeftRight == Hand_LeftRight(lr))
+			LR[lr] += 2;
+		if (HLR[0] == Hand_LeftRight(lr))
+			LR[lr] += 2;
+		if (HLR[1] == Hand_LeftRight(lr))
+			LR[lr] += 1;
+	}
+
+	HLR[1] = HLR[0];
+	HLR[0] = pHandInf_t->e_LeftRight;
+
+	int ma = std::max(LR[2], std::max(LR[0], LR[1]));
+
+	if (LR[0] == ma)
+		pHandInf_t->e_LeftRight = Hand_LeftRight(0);
+	else if (LR[1] == ma)
+		pHandInf_t->e_LeftRight = Hand_LeftRight(1);
+	else
+		pHandInf_t->e_LeftRight = Hand_LeftRight(2);
+}
+
+void CViewDirect2D::detect_InputMode(cv::InputArray likelihoodArea, float * p_HueImage, float * p_SaturationImage, float * ValueImage, int tCenterX, int tCenterY, S_HANDINF * pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_)
+{
+	cv::Mat inImage = inImage_.getMat();
+	cv::Mat likelihoodImage = likelihoodArea.getMat();
+	cv::Mat binImage, dstImage;
+	cv::cvtColor(likelihoodImage, binImage, CV_BGR2GRAY);
+
+	int tPalmR = (int)((0.8*size*pHandInf_t->handRadius) / (Hand_DomeR*Def_FOV));
+	float tOfsX = 0, tOfsY = 0;
+	int tCounter = 0;
+	int tMinX = tCenterX - tPalmR; if (tMinX < 0) tMinX = 0;
+	int tMaxX = tCenterX + tPalmR; if (size < tMaxX) tMaxX = size;
+	int tMinY = tCenterY - tPalmR; if (tMinY < 0) tMinY = 0;
+	int tMaxY = tCenterY + tPalmR; if (size < tMaxY) tMaxY = size;
+
+#pragma omp parallel for
+	for (int tIndY = tMinY; tIndY <= tMaxY; tIndY++)
+	{
+		for (int tIndX = tMinX; tIndX <= tMaxX; tIndX++)
+		{
+			if ((tIndX - tCenterX)*(tIndX - tCenterX) + (tIndY - tCenterY)*(tIndY - tCenterY) < tPalmR*tPalmR)
+			{
+				float f0 = (tIndX - size / 2);
+				float f1 = ValueImage[tIndY*size + tIndX];
+				tOfsX += (float)(tIndX - size / 2) * ValueImage[tIndY * size + tIndX];
+				//f4_tOfsX += (F4)(i4_tIndX - Hand_ImgW/2)*pf4_tV_In[i4_tIndY*Hand_ImgW + i4_tIndX];
+				tOfsY += (float)(tIndY - size / 2)*ValueImage[tIndY*size + tIndX];
+				//f4_tOfsY += (F4)(i4_tIndY - Hand_ImgH/2)*pf4_tV_In[i4_tIndY*Hand_ImgW + i4_tIndX];
+				//DrawPix(pu4_tRGB_Out,i4_tIndX,i4_tIndY,0xff,0xff,0x00,1);
+				tCounter++;
+				//i4_tCounter++;
+			}
+		}
+	}
+	cv::circle(dstImage, cv::Point((int)((size/2)+(tOfsX/tCounter)), (int)((size / 2) + (tOfsY / tCounter))), 5, cv::Scalar(255, 0, 0), -1, CV_AA);
+
+	XMFLOAT2 F2_tHand = XMFLOAT2(tOfsX / tCounter, tOfsY / tCounter);
+	XMFLOAT2 F2_tHandX = XMFLOAT2(cosf(Def_PI*2.0f*(pHandInf_t->handRotate + 0.00f)), sinf((Def_PI*2.0f*(pHandInf_t->handRotate*0.00f))));
+	XMFLOAT2 F2_tHandY = XMFLOAT2(cosf(Def_PI*2.0f*(pHandInf_t->handRotate + 0.25f)), sinf((Def_PI*2.0f*(pHandInf_t->handRotate*0.25f))));
+
+	XMFLOAT2 F2_Temp;
+	XMStoreFloat2(&F2_Temp, XMVector2Dot(XMLoadFloat2(&F2_tHand), XMLoadFloat2(&F2_tHandX)));
+	tOfsX = F2_Temp.x;
+	XMStoreFloat2(&F2_Temp, XMVector2Dot(XMLoadFloat2(&F2_tHand), XMLoadFloat2(&F2_tHandY)));
+	tOfsY = F2_Temp.x;
+
+	//現在は３Ｄモードは考えない
+
+		//if((f4_tOfsX - 0.0f)*(f4_tOfsX - 0.0f)+(f4_tOfsY - 0.0f)*(f4_tOfsY - 0.0f) < 0.30f*0.30f)(iwama)
+		//{(iwama)
+		//	pHandInf_t->e_InputMode = Hand_IM3D;
+		//}(iwama)
+		//else(iwama)
+		//{(iwama)
+	if (tOfsY < 0)
+	{
+		if (pHandInf_t->e_LeftRight == Hand_Left)
+			pHandInf_t->e_InputMode = Hand_IMChar;
+		else
+			pHandInf_t->e_InputMode = Hand_IM2D;
+	}
+	else
+	{
+		if (pHandInf_t->e_LeftRight == Hand_Left)
+			pHandInf_t->e_InputMode = Hand_IM2D;
+		else
+			pHandInf_t->e_InputMode = Hand_IMChar;
+	}
+	//}(iwama)
+/*
+		if((f4_tOfsX - 0.0f)*(f4_tOfsX - 0.0f)+(f4_tOfsY - 0.0f)*(f4_tOfsY - 0.0f) < 0.30f*0.30f)
+		{
+			pHandInf_t->e_InputMode = Hand_IM3D;
+		}
+		else
+		{
+			if(f4_tOfsY < 0)
+			{
+				if(pHandInf_t->e_LeftRight == Hand_Left)
+					pHandInf_t->e_InputMode = Hand_IMChar;
+				else
+					pHandInf_t->e_InputMode = Hand_IM2D;
+			}
+			else
+			{
+				if(pHandInf_t->e_LeftRight == Hand_Left)
+					pHandInf_t->e_InputMode = Hand_IM2D;
+				else
+					pHandInf_t->e_InputMode = Hand_IMChar;
+			}
+		}
+	*/
+
+	//		else
+	//			pHandInf_t->e_InputMode = Hand_IM2D;
+
+
+	//インプットモードのフィルタ
+	//現在から４つ前までのデータに重みを付ける（現在のデータを＋３　１つ２つ前を＋２　３つ４つ前を＋１）
+	//もっとも数値が高いモードを現在のモードとする
+
+	int IM[4] = { 0,0,0,0 };
+
+	for (int im = 0; im < 4; im++) {
+		if (pHandInf_t->e_InputMode == Hand_InputMode(im))
+			IM[im] += 3;
+		if (HIM[0] == Hand_InputMode(im))
+			IM[im] += 2;
+		if (HIM[1] == Hand_InputMode(im))
+			IM[im] += 2;
+		if (HIM[2] == Hand_InputMode(im))
+			IM[im] += 1;
+		if (HIM[3] == Hand_InputMode(im))
+			IM[im] += 1;
+	}
+
+	HIM[3] = HIM[2];
+	HIM[2] = HIM[1];
+	HIM[1] = HIM[0];
+	HIM[0] = pHandInf_t->e_InputMode;
+
+	int ma = std::max(IM[3], std::max(IM[2], std::max(IM[0], IM[1])));
+
+	if (IM[0] == ma)
+		pHandInf_t->e_InputMode = Hand_InputMode(0);
+	else /*if(IM[1] == ma)
+		pHandInf_t->e_InputMode = Hand_InputMode(1);
+	else */if (IM[2] == ma)
+	pHandInf_t->e_InputMode = Hand_InputMode(2);
+	else
+	pHandInf_t->e_InputMode = Hand_InputMode(3);
+
+
+	//ここまで
+
+	//	pHandInf_t->e_InputMode = Hand_IM2D;
+	//	pHandInf_t->e_InputMode = Hand_IM3D;
+	//	pHandInf_t->e_InputMode = Hand_IMChar;
+}
+
+void CViewDirect2D::detectFingerDistance(cv::InputArray likelihoodArea, float * p_HueImage, float * p_SaturationImage, float * ValueImage, S_HANDINF * pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_)
+{
+//#pragma omp parallel for
+	for (int tIndexF = 0; tIndexF < 5; tIndexF++) {
+
+	}
 }
 
 /** @brief レンダリング関連のアイドル処理を行う．
@@ -826,7 +1222,7 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	/* 画像データを確保済みのメモリ上へ書き込み */
 	copyImageToMemory(renderImage01, this->memory, 1);	// ①カメラからの入力画像をメモリ上に配置
 	copyImageToMemory(renderImage02, this->memory, 2);	// ②手指領域の抽出画像をメモリ上に配置
-	copyImageToMemory(renderImage03, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
+	copyImageToMemory(renderImage02, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
 	copyImageToMemory(renderImage01, this->memory, 4);	// ④解析情報の取得画像をメモリ上に配置
 	copyImageToMemory(renderImage01, this->memory, 5);	// ⑤インプットモードの判別画像をメモリ上に配置
 

@@ -14,8 +14,8 @@ class CViewDirect2D :
 	/* 入力モード */
 	enum Hand_InputMode
 	{
-		Hand_2D,
-		hand_3D,
+		Hand_IM2D,
+		hand_IM3D,
 		Hand_IMChar,
 		Hand_IMEnd,
 	};
@@ -76,8 +76,11 @@ private:
 	static XMFLOAT3 m_pV3PixToVec[size*size];
 	std::wstring strText = L"";					// ウィンドウに表示するfps用テキスト
 	byte *memory;	// cv::Mat -> ID2D1Bitmap用のバッファ
+	Hand_LeftRight HLR[2] = { Hand_LREnd,Hand_LREnd };//手の左右判断の平滑化用
+	Hand_InputMode HIM[4] = { Hand_IMEnd,Hand_IMEnd,Hand_IMEnd,Hand_IMEnd };	// 入力モード判定用
 public:
 	FlyCap2CVWrapper* FlyCap;
+	int NumRadius = 0;
 	int *m_pNumAngle;	// 円形テーブルの各半径に対する円周の長さ（サンプリング点の数）
 	int **m_ppAngleX;	// サンプリング点のX位置
 	int **m_ppAngleY;	// サンプリング点のY位置
@@ -115,6 +118,17 @@ public:
 	void LeastSquares(XMVECTOR *pV2_tPos, int lenC, XMVECTOR *pV2_tRoot, XMVECTOR *pV2_tTop);
 	void Line2Circle(float tCX, float tCY, float tR, XMVECTOR *pV2_t0, XMVECTOR V2_t1);
 	int FindGroup2to5(int tChainSize, XMFLOAT2 *pV2_tChainRoot, XMFLOAT2 *pV2_tChainVec, float *tChainLen, S_HANDINF *pHandInf_t);
+	void EstimateFinger1Root(int* tRootX0, int* tRootY0, float* tTargetAngle0, int* tRootX1, int* tRootY1,
+		float* tTargetAngle1, S_HANDINF *pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_);
+	int detectFinger1(cv::InputArray likelihoodArea, float *p_HueImage,	float *p_SaturationImage, float *ValueImage, S_HANDINF *pHandInf_t,
+		int tRootX0, int tRootY0, float tTargetAngle0, int tRootX1, int tRootY1, float tTargetAngle1, cv::InputArray inImage_, cv::OutputArray outImage_);
+	float FindOne(float tTargetAngle, int tChainSize, XMFLOAT2 *pV2_ChainRoot, XMFLOAT2 *pV2_tChainVec,
+		float *tChainLen, XMFLOAT2 *pV2_tFingerRoot, XMFLOAT2 *pV2_tFingerVec, float *tFingerLen);
+	void Hand_LeftRight_Smoothing(S_HANDINF *pHandInf_t);
+	void detect_InputMode(cv::InputArray likelihoodArea, float *p_HueImage, float *p_SaturationImage, float *ValueImage,
+		int tCenterX, int tCenterY, S_HANDINF *pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_);
+	void detectFingerDistance(cv::InputArray likelihoodArea, float *p_HueImage, float *p_SaturationImage, float *ValueImage,
+		S_HANDINF *pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_);
 	HRESULT AppIdle(cv::InputArray image_, double fps);
 	HRESULT	Render(cv::InputArray image_, double fps);
 	//void DrawPix(cv::InputArray inImage_);

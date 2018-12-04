@@ -45,6 +45,7 @@
 #include <windows.h>
 
 // C ランタイム ヘッダー ファイル
+#include <stdio.h>
 #include <tchar.h>		// TCHAR型
 #include <string>		// std::string
 #include <map>			// std::map
