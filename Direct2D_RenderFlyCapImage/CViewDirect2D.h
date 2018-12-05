@@ -35,6 +35,14 @@ class CViewDirect2D :
 		Hand_JointTop,//指先
 		Hand_JointEnd,
 	};
+	/* 指のエッジ取得時のインデックス */
+	enum En_GetEdge
+	{
+		GetEdge_Inc,
+		GetEdge_Dec,
+		GetEdge_Abs,
+		GetEdge_End,
+	};
 	/* 指情報の構造体 */
 	typedef struct S_FingerInf {
 		float pf4_PosX[Hand_JointEnd];	//各関節の3D位置:x座標
@@ -129,6 +137,8 @@ public:
 		int tCenterX, int tCenterY, S_HANDINF *pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_);
 	void detectFingerDistance(cv::InputArray likelihoodArea, float *p_HueImage, float *p_SaturationImage, float *ValueImage,
 		S_HANDINF *pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_);
+	void GetEdge(En_GetEdge e_tGetEdge, float *likelihoodArea, float *p_HueImage, float *p_SaturationImage, float *ValueImage,
+		int tMin, int tMax, XMFLOAT2 *pF2_tPos, XMFLOAT2 *pF2_tVec, float *p_tMaxLikelihood, int *p_tMaxIndex);
 	HRESULT AppIdle(cv::InputArray image_, double fps);
 	HRESULT	Render(cv::InputArray image_, double fps);
 	//void DrawPix(cv::InputArray inImage_);

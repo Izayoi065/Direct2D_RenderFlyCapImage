@@ -24,6 +24,12 @@
 #define Def_Finger0_SearchOfs 0.175f
 #define Def_Finger0_SearchAng 0.125f
 
+#define Def_EdgeFindRoot 0.1
+#define Def_EdgeFind1 0.35
+#define Def_EdgeFind2 0.70
+#define Def_EdgeFindTop 0.975
+#define Def_NumPressure 16
+
 /* インクルードファイル */
 #include "CViewDirect2D.h"	// DirectX2D関連の初期化クラス
 #include "resource.h"		// リソースファイル
@@ -1157,9 +1163,112 @@ void CViewDirect2D::detect_InputMode(cv::InputArray likelihoodArea, float * p_Hu
 
 void CViewDirect2D::detectFingerDistance(cv::InputArray likelihoodArea, float * p_HueImage, float * p_SaturationImage, float * ValueImage, S_HANDINF * pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_)
 {
+	cv::Mat likelihoodImage = likelihoodArea.getMat();
+	cv::Mat binImage;
+	cv::cvtColor(likelihoodImage, binImage, CV_BGR2GRAY);
+	float tlikelihoodArea[size*size];
+#pragma omp parallel for	 // HSVの各チャンネルをfloat型(0～1)で取得
+	for (int row = 0; row < size; row++) {
+		cv::Vec3b *src = binImage.ptr<cv::Vec3b>(row);
+		for (int col = 0; col < size; col++) {
+			cv::Vec3b bin = src[col];
+			int pointBGR = row * size + col;
+			tlikelihoodArea[pointBGR] = (byte)bin[0] / 255;
+		}
+	}
+
 //#pragma omp parallel for
 	for (int tIndexF = 0; tIndexF < 5; tIndexF++) {
+		XMFLOAT2 F2_tVec = XMFLOAT2(
+			pHandInf_t->pFI[tIndexF].pf4_PosX[Hand_JointTop] - pHandInf_t->pFI[tIndexF].pf4_PosX[Hand_JointRoot],
+			pHandInf_t->pFI[tIndexF].pf4_PosY[Hand_JointTop] - pHandInf_t->pFI[tIndexF].pf4_PosY[Hand_JointRoot]);
+		XMVECTOR V2_tVec = XMLoadFloat2(&F2_tVec);
+		XMFLOAT2 F2_Temp;
+		XMStoreFloat2(&F2_Temp, V2_tVec);
+		int tLength = F2_Temp.x+0.5f;
+		XMVECTOR V2N_tVec = XMVector2Normalize(V2_tVec);
+		XMFLOAT2 F2N_tVec;
+		XMStoreFloat2(&F2N_tVec, V2N_tVec);
+		XMFLOAT2 F2_tNVec = XMFLOAT2(F2N_tVec.y, -F2N_tVec.x);
+		XMVECTOR V2_tNVec = XMLoadFloat2(&F2_tNVec);
+		XMVECTOR V2N_tNVec = XMVector2Normalize(V2_tNVec);
+		XMFLOAT2 F2N_tNVec;
+		XMStoreFloat2(&F2N_tNVec, V2N_tNVec);
 
+		int p_SumAcc[Hand_JointEnd] = { 0 };
+		float p_t[4] = { 0 };
+#pragma omp parallel for
+		for (int tIndexJoint = Hand_JointRoot; tIndexJoint < Hand_JointEnd; tIndexJoint++) {
+			pHandInf_t->pFI[tIndexJoint].pf4_PosZ[tIndexJoint] = 0.0f;
+		}
+
+#pragma omp parallel for
+		for (int tIndSmpR = tLength * Def_EdgeFindRoot; tIndSmpR < tLength*Def_EdgeFindTop; tIndSmpR++)//0.25～0.75
+		{
+			XMFLOAT2 F2_tPos = XMFLOAT2(
+				pHandInf_t->pFI[tIndexF].pf4_PosX[Hand_JointRoot] + tIndSmpR * F2_tNVec.x,
+				pHandInf_t->pFI[tIndexF].pf4_PosY[Hand_JointRoot] + tIndSmpR * F2_tNVec.y);
+			float tMaxdistanceM, tMaxdistanceP;
+			int tMaxIndexM, tMaxIndexP;
+
+			/* 指の片側のエッジ検出 */
+			GetEdge(GetEdge_Inc, tlikelihoodArea, p_HueImage, p_SaturationImage, ValueImage, FingerWidth / 4, FingerWidth, &F2_tPos, &F2N_tNVec, &tMaxdistanceM, &tMaxIndexM);
+			// cv::circle
+		}
+			
+	}
+}
+
+void CViewDirect2D::GetEdge(En_GetEdge e_tGetEdge, float * likelihoodArea, float * p_HueImage, float * p_SaturationImage, float * ValueImage, int tMin, int tMax, XMFLOAT2 * pF2_tPos, XMFLOAT2 * pF2_tVec, float * p_tMaxLikelihood, int * p_tMaxIndex)
+{
+	float tLikelihood;
+	*p_tMaxLikelihood = 0;
+	*p_tMaxIndex = 0;
+
+	for (int tIndex = tMin; tIndex < tMax; tIndex++) {
+		XMFLOAT2 F2_tPos0, F2_tPos1;
+		XMStoreFloat2(&F2_tPos0, (XMLoadFloat2(pF2_tPos) + XMLoadFloat2(pF2_tVec) * (tIndex - 1)));
+		XMStoreFloat2(&F2_tPos1, (XMLoadFloat2(pF2_tPos) + XMLoadFloat2(pF2_tVec) * (tIndex + 1)));
+
+		/*f4_tLikelihood =
+			pf4_tLikelihood[(I4)V2_tPos0.y*Hand_ImgW + (I4)V2_tPos0.x] -
+			pf4_tLikelihood[(I4)V2_tPos1.y*Hand_ImgW + (I4)V2_tPos1.x];
+		f4_tLikelihood +=
+			pf4_tV_In[(I4)V2_tPos0.y*Hand_ImgW + (I4)V2_tPos0.x] -
+			pf4_tV_In[(I4)V2_tPos1.y*Hand_ImgW + (I4)V2_tPos1.x];*/
+
+		tLikelihood =
+			ValueImage[(int)F2_tPos0.y*size + (int)F2_tPos0.x] -
+			ValueImage[(int)F2_tPos1.y*size + (int)F2_tPos1.x];
+
+		switch (e_tGetEdge)
+		{
+		case GetEdge_Inc:
+			break;
+		case GetEdge_Dec:
+			tLikelihood = -tLikelihood;
+			break;
+		case GetEdge_Abs:
+			if (tLikelihood < 0.0f)tLikelihood = -tLikelihood;
+			break;
+		}
+
+		if (*p_tMaxLikelihood < tLikelihood)
+		{
+			*p_tMaxLikelihood = tLikelihood;
+			*p_tMaxIndex = tIndex;
+		}
+
+		//char fileName[20];
+		//sprintf(fileName, "V_In_%d.dat", a);
+		//op = fopen(fileName, "a");
+		//fprintf(op, "%d  %-8.3f  %-8.3f  0  %-8.3f  1  %-8.3f\n", i4_tInd + 1, f4_tLikelihood, *pf4_tMaxLikelihood,
+		//	pf4_tV_In[(I4)V2_tPos0.y*Hand_ImgW + (I4)V2_tPos0.x],pf4_tV_In[(I4)V2_tPos1.y*Hand_ImgW + (I4)V2_tPos1.x]);
+		//fclose(op);
+	}
+
+	if (tMax == *p_tMaxIndex) {
+		*p_tMaxIndex = *p_tMaxIndex;
 	}
 }
 
