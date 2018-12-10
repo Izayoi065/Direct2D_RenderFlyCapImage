@@ -114,7 +114,6 @@ void CMainApplication::ConvertToMat(HWND hwnd, cv::OutputArray outImage_)
 	converted_mat.copyTo(outImage_);
 }
 
-
 /* インスタンス初期化関数 InitInstance */
 BOOL CMainApplication::InitInstance(HINSTANCE hInstance, LPTSTR lpCmdLine, int nShowCmd) {
 	// 変数の宣言
@@ -187,9 +186,7 @@ int CMainApplication::Run() {
 			}
 			/* レンダリング処理 */
 			fps = FPS.GetFPS();
-			//image = FlyCap.readImage();
-			image = cv::imread("data/resources/handImage03.png");
-			//cv::resize(image, image, cv::Size(), 0.5, 0.5);
+			getInputImage(image);
 			hr = this->m_pWindow->AppIdle(image, fps);
 		}
 	}

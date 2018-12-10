@@ -13,6 +13,7 @@
 
 /* 前方宣言 */
 class CApplication;		// アプリケーションクラス CApplication
+class HandAnalyzer;
 
 class CWinBase
 {
@@ -23,6 +24,9 @@ private:
 		CID_BT_GetFolderPass = 10000,
 		CID_BT_CaptureStart,
 		CID_BT_CaptureEnd,
+		CID_BT_Sampling,
+		CID_BT_SystemStart,
+		CID_BT_SystemStop,
 		CID_BT_END,
 	};
 	/* STATICコントロール管理用のID */
@@ -32,6 +36,8 @@ private:
 		CID_ST_FileName,
 		CID_ST_CaptureStart,
 		CID_ST_CaptureEnd,
+		CID_ST_Sampling,
+		CID_ST_SystemStartandStop,
 		CID_ST_END,
 	};
 	/* テキストボックス管理用のID */
@@ -55,13 +61,25 @@ private:
 	HWND m_hwndBUTTONPhase[CID_BT_END];		// ボタン管理用の識別子
 	MYADVANCEDSETTING MASetting;
 	HBRUSH      m_hBrush_BkColor;   //背景の色
+	const int m_i4Font = 10;
 public:
 	/* メンバ変数 */
 	HWND m_hWnd;			// ウィンドウハンドルm_hWnd
 	HWND m_hWndViewTarget;	// 各種画像をレンダリングするスペース
+	HandAnalyzer* HandAna;
+	static const unsigned size = 504U;	// カメラからの入力画像の1辺のサイズ
 	CApplication * m_pApp;	// アプリケーションオブジェクトポインタm_pApp
 	cv::VideoWriter writer; //ビデオに書き込む変数
+	int sampCenterX;
+	int sampCenterY;
+	float sampRadius;
+	float tHandLikelihood[3][size*size];			// 手指領域である可能性を数値化
+	float ppf4_Hue[3][size*size];
+	float ppf4_Saturation[3][size*size];
+	float ppf4_Value[3][size*size];
+	BOOL flag_DragSapmling = FALSE;
 	BOOL flagCapture = false;
+	BOOL flagSystemOperation = false;
 	cv::Scalar hsv_min;
 	cv::Scalar hsv_max;
 	static std::map<HWND, CWinBase *> m_mapWindowMap;	// ウィンドウハンドルからウィンドウオブジェクトを引くマップ.

@@ -79,3 +79,13 @@ BOOL CApplication::OnIdle(LONG lCount) {
 	// ‚Æ‚è‚ ‚¦‚¸TRUE
 	return TRUE;
 }
+
+void CApplication::getInputImage(cv::OutputArray outImage_)
+{
+	cv::Mat image;
+	//image = FlyCap.readImage();
+	image = cv::imread("data/resources/handImage03.png");
+	//cv::resize(image, image, cv::Size(), 0.5, 0.5);
+
+	image.copyTo(outImage_);
+}

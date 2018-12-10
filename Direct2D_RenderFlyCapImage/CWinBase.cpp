@@ -13,6 +13,7 @@
  /* インクルードファイル */
 #include "CApplication.h"	// アプリケーションクラス
 #include "CWinBase.h"		// 基底ウィンドウクラス
+#include "HandAnalyzer.h"
 #include "resource.h"		// リソースファイル
 
 
@@ -29,6 +30,7 @@ CWinBase::CWinBase(CApplication * pApp) {
 	// メンバの初期化
 	m_hWnd = NULL;	// m_hWndをNULL.
 	m_pApp = pApp;	// m_pAppをpApp.
+	HandAna = new HandAnalyzer();
 	m_hBrush_BkColor = CreateSolidBrush(RGB(0, 0, 0));	// STATICコントロールの背景
 	MASetting = { 0,15,115,180,100,255 };
 	hsv_min = cv::Scalar(MASetting.TH_MIN_HUE, MASetting.TH_MIN_SATURATION, MASetting.TH_MIN_BRIGHTNESS);
@@ -347,31 +349,54 @@ BOOL CWinBase::Create(LPCTSTR lpctszClassName, LPCTSTR lpctszWindowName, DWORD d
 	// 画像のレンダリングするスペースを作成する．
 	m_hWndViewTarget = CreateWindow(L"STATIC", NULL, WS_CHILD | WS_VISIBLE | SS_BITMAP, 0, 0, rect.right - rect.left, 200, m_hWnd, NULL, hInstance, NULL);
 
-	// 録画モードのグループを作成
-	CreateWindow(L"BUTTON", L"録画モード", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 10, 210, 670, 75, m_hWnd, NULL, hInstance, NULL);
+	/* システム制御のグループを作成 */
+	const int OperateModeW = 10;
+	const int OperateModeH = 210;
+	CreateWindow(L"BUTTON", L"システムの操作", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, OperateModeW, OperateModeH, 670, 75, m_hWnd, NULL, hInstance, NULL);
+	// STATICラベルを追加
+	m_hwndSTATICPhase[CID_ST_Sampling] =
+		CreateWindow(L"STATIC", L"サンプリング：", WS_CHILD | WS_VISIBLE, OperateModeW + 5, OperateModeH + 25, 115, 18, m_hWnd, (HMENU)CID_ST_Sampling, hInstance, NULL);
+	m_hwndSTATICPhase[CID_ST_SystemStartandStop] =
+		CreateWindow(L"STATIC", L"KHAKIシステム：", WS_CHILD | WS_VISIBLE, OperateModeW + 250, OperateModeH + 25, 130, 18, m_hWnd, (HMENU)CID_ST_SystemStartandStop, hInstance, NULL);
+	// ボタンを追加
+	m_hwndBUTTONPhase[CID_BT_Sampling] =
+		CreateWindow(L"BUTTON", L"サンプリング", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, OperateModeW + 115, OperateModeH + 25, 115, 20, m_hWnd, (HMENU)CID_BT_Sampling, hInstance, NULL);
+	EnableWindow(m_hwndBUTTONPhase[CID_BT_Sampling], TRUE);
+	m_hwndBUTTONPhase[CID_BT_SystemStart] =
+		CreateWindow(L"BUTTON", L"開始", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, OperateModeW + 375, OperateModeH + 25, 60, 20, m_hWnd, (HMENU)CID_BT_SystemStart, hInstance, NULL);
+	EnableWindow(m_hwndBUTTONPhase[CID_BT_SystemStart], TRUE);
+	m_hwndBUTTONPhase[CID_BT_SystemStop] =
+		CreateWindow(L"BUTTON", L"停止", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, OperateModeW + 440, OperateModeH + 25, 60, 20, m_hWnd, (HMENU)CID_BT_SystemStop, hInstance, NULL);
+	EnableWindow(m_hwndBUTTONPhase[CID_BT_SystemStop], FALSE);
+
+	/* 録画モードのグループを作成 */
+	const int RecordingModeW = 10;
+	const int RecordingModeH = 310;
+	CreateWindow(L"BUTTON", L"録画モード", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, RecordingModeW, RecordingModeH, 670, 75, m_hWnd, NULL, hInstance, NULL);
+	// STATICラベルを追加
 	m_hwndSTATICPhase[CID_ST_GetFolderPass] = 
-		CreateWindow(L"STATIC", L"保存先：", WS_CHILD | WS_VISIBLE, 15, 235, 65, 18, m_hWnd, (HMENU)CID_ST_GetFolderPass, hInstance, NULL);
+		CreateWindow(L"STATIC", L"保存先：", WS_CHILD | WS_VISIBLE, RecordingModeW+5, RecordingModeH+25, 65, 18, m_hWnd, (HMENU)CID_ST_GetFolderPass, hInstance, NULL);
 	m_hwndSTATICPhase[CID_ST_FileName] = 
-		CreateWindow(L"STATIC", L"ファイル名：", WS_CHILD | WS_VISIBLE, 15, 260, 96, 18, m_hWnd, (HMENU)CID_ST_FileName, hInstance, NULL);
+		CreateWindow(L"STATIC", L"ファイル名：", WS_CHILD | WS_VISIBLE, RecordingModeW+5, RecordingModeH+50, 96, 18, m_hWnd, (HMENU)CID_ST_FileName, hInstance, NULL);
 	m_hwndSTATICPhase[CID_ST_CaptureStart] = 
-		CreateWindow(L"STATIC", L"キャプチャー開始：", WS_CHILD | WS_VISIBLE, 275, 260, 145, 18, m_hWnd, (HMENU)CID_ST_CaptureStart, hInstance, NULL);
+		CreateWindow(L"STATIC", L"キャプチャー開始：", WS_CHILD | WS_VISIBLE, RecordingModeW+265, RecordingModeH+50, 145, 18, m_hWnd, (HMENU)CID_ST_CaptureStart, hInstance, NULL);
 	m_hwndSTATICPhase[CID_ST_CaptureEnd] = 
-		CreateWindow(L"STATIC", L"キャプチャー停止：", WS_CHILD | WS_VISIBLE, 480, 260, 145, 18, m_hWnd, (HMENU)CID_ST_CaptureEnd, hInstance, NULL);
+		CreateWindow(L"STATIC", L"キャプチャー停止：", WS_CHILD | WS_VISIBLE, RecordingModeW+470, RecordingModeH+50, 145, 18, m_hWnd, (HMENU)CID_ST_CaptureEnd, hInstance, NULL);
 	// テキストボックスを追加
 	m_hwndTextBoxPhase[CID_TX_CapturePass] = 
-		CreateWindow(L"EDIT", L"E:\\workspace", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 75, 235, 550, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
+		CreateWindow(L"EDIT", L"E:\\workspace", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, RecordingModeW+65, RecordingModeH+25, 550, 20, m_hWnd, (HMENU)CID_TX_CapturePass, hInstance, NULL);
 	m_hwndTextBoxPhase[CID_TX_FileName] = 
-		CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, 115, 260, 150, 20, m_hWnd, (HMENU)CID_TX_FileName, hInstance, NULL);
+		CreateWindow(L"EDIT", NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_LEFT | ES_MULTILINE, RecordingModeW+105, RecordingModeH+50, 150, 20, m_hWnd, (HMENU)CID_TX_FileName, hInstance, NULL);
 	// ボタンを追加
 	m_hwndBUTTONPhase[CID_BT_GetFolderPass] = 
-		CreateWindow(L"BUTTON", NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON | BS_ICON, 625, 235, 30, 20, m_hWnd, (HMENU)CID_BT_GetFolderPass, hInstance, NULL);
+		CreateWindow(L"BUTTON", NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON | BS_ICON, RecordingModeW+615, RecordingModeH+25, 30, 20, m_hWnd, (HMENU)CID_BT_GetFolderPass, hInstance, NULL);
 	SendMessage(m_hwndBUTTONPhase[CID_BT_GetFolderPass], BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadImage(hInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 40, 40, LR_DEFAULTCOLOR));
 	EnableWindow(m_hwndBUTTONPhase[CID_BT_GetFolderPass], TRUE);
 	m_hwndBUTTONPhase[CID_BT_CaptureStart] = 
-		CreateWindow(L"BUTTON", L"Start", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 420, 260, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureStart, hInstance, NULL);
+		CreateWindow(L"BUTTON", L"Start", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, RecordingModeW+410, RecordingModeH+50, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureStart, hInstance, NULL);
 	EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureStart], TRUE);
 	m_hwndBUTTONPhase[CID_BT_CaptureEnd] = 
-		CreateWindow(L"BUTTON", L"Stop", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 625, 260, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureEnd, hInstance, NULL);
+		CreateWindow(L"BUTTON", L"Stop", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, RecordingModeW+615, RecordingModeH+50, 50, 20, m_hWnd, (HMENU)CID_BT_CaptureEnd, hInstance, NULL);
 	EnableWindow(m_hwndBUTTONPhase[CID_BT_CaptureEnd], FALSE);
 
 	// ログのグループを作成
@@ -481,6 +506,20 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 			SetBkColor(hDC, RGB(255, 255, 255));   // テキストが書かれている部分のテキストの背景の色
 			return (LRESULT)m_hBrush_BkColor;   // テキストが書かれていない部分の背景の色
 		}
+		else if (hCtrl == GetDlgItem(m_hWnd, CID_ST_Sampling)) // スタティックウィンドウのID
+		{
+			SetBkMode(hDC, OPAQUE);             // 背景を塗りつぶし
+			SetTextColor(hDC, RGB(0, 0, 0));    // テキストの色
+			SetBkColor(hDC, RGB(255, 255, 255));   // テキストが書かれている部分のテキストの背景の色
+			return (LRESULT)m_hBrush_BkColor;   // テキストが書かれていない部分の背景の色
+		}
+		else if (hCtrl == GetDlgItem(m_hWnd, CID_ST_SystemStartandStop)) // スタティックウィンドウのID
+		{
+			SetBkMode(hDC, OPAQUE);             // 背景を塗りつぶし
+			SetTextColor(hDC, RGB(0, 0, 0));    // テキストの色
+			SetBkColor(hDC, RGB(255, 255, 255));   // テキストが書かれている部分のテキストの背景の色
+			return (LRESULT)m_hBrush_BkColor;   // テキストが書かれていない部分の背景の色
+		}
 
 		break;
 	}
@@ -549,10 +588,71 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 			SetWindowText(m_hwndTextBoxPhase[CID_TX_CapturePass], (LPCTSTR)dir);
 			break;
 		}
+		case CID_BT_Sampling:
+		{
+			cv::Mat inImage;
+			this->m_pApp->getInputImage(inImage);
+			HandAna->handLikelihood_Sampling_RGB(inImage, cv::Point(size / 2, size / 2), sampRadius, tHandLikelihood[0]);
+			HandAna->handLikelihood_Sampling_HSV(ppf4_Hue[0], ppf4_Saturation[0], ppf4_Value[0], cv::Point(size / 2, size / 2), sampRadius);
+			break;
+		}
+		case CID_BT_SystemStart:
+		{
+			flagSystemOperation = TRUE;
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_SystemStart], FALSE);
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_SystemStop], TRUE);
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_Sampling], TRUE);
+			break;
+		}
+		case CID_BT_SystemStop:
+		{
+			flagSystemOperation = FALSE;
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_SystemStart], TRUE);
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_SystemStop], FALSE);
+			EnableWindow(m_hwndBUTTONPhase[CID_BT_Sampling], FALSE);
+			break;
+		}
 		default:
 			return DefWindowProc(hwnd, uMsg, wParam, lParam);
 		}
 		// 既定の処理
+		break;
+	}
+	case WM_MOUSEMOVE:
+	{
+		if (wParam & MK_LBUTTON && flag_DragSapmling)
+		{
+			int i4_tCenterX = LOWORD(lParam);
+			int i4_tCenterY = HIWORD(lParam) - m_i4Font * 2;//（ウインドウ - ボタン）領域内で移動した位置を算出している。
+			sampRadius = sqrtf((float)(sampCenterX - i4_tCenterX)*(sampCenterX - i4_tCenterX) + (sampCenterY - i4_tCenterY)*(sampCenterY - i4_tCenterY));
+		}
+		break;
+	}
+	case WM_LBUTTONDOWN:
+	{
+		int i4_tCenterX = LOWORD(lParam);
+		int i4_tCenterY = HIWORD(lParam) - m_i4Font * 2;//（ウインドウ - ボタン）領域内でクリックされた位置を算出している。
+		if (0 < i4_tCenterX && i4_tCenterX < size && 0 < i4_tCenterY && i4_tCenterY < size)
+		{
+			sampCenterX = i4_tCenterX;//クリックされた座標を代入
+			sampCenterY = i4_tCenterY;
+			flag_DragSapmling = TRUE;
+		}
+
+		break;
+	}
+	case WM_LBUTTONUP:
+	{
+		int i4_tCenterX = LOWORD(lParam);
+		int i4_tCenterY = HIWORD(lParam) - m_i4Font * 2;//（ウインドウ - ボタン）領域内でクリックされた位置を算出している。
+		if (0 < i4_tCenterX && i4_tCenterX < size && 0 < i4_tCenterY && i4_tCenterY < size)
+		{
+			sampRadius = sqrtf((float)(sampCenterX - i4_tCenterX)*(sampCenterX - i4_tCenterX) + (sampCenterY - i4_tCenterY)*(sampCenterY - i4_tCenterY));
+			flag_DragSapmling = FALSE;
+		}
+		MyOutputDebugString(L"**************************************************\n");
+		MyOutputDebugString(L"	sampRadius(半径)：%f\n", sampRadius);
+		MyOutputDebugString(L"**************************************************\n");
 		break;
 	}
 	/* その他 */

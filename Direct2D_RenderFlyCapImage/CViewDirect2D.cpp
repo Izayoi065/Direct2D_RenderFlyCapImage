@@ -95,6 +95,7 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 		ppf4_SampleS[tIndexR]	= (float*)malloc(sizeof(ppf4_SampleS[0])*m_pNumAngle[int((size / 2)*Def_MAXActiveRate) - 1]);
 		ppi4_Peek[tIndexR]		= (int*)malloc(sizeof(ppi4_Peek[0])*m_pNumAngle[int((size / 2)*Def_MAXActiveRate) - 1]/2);
 	}
+
 #pragma omp parallel for
 	for (int IndexRad = 0; IndexRad < (int)NumRadius; IndexRad++)
 	{
@@ -130,6 +131,7 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 		float f4_tPitch = -f4_tBase * 2.0f / size;
 		float f4_tLikelihood = cos(Def_FOV / 2.0f);
 
+#pragma omp parallel for
 		for (int i4_tIndY = 0; i4_tIndY < size; i4_tIndY++)
 		{
 			float f4_tY0 = IndexToFloat(i4_tIndY, f4_tBase, f4_tPitch);
@@ -283,15 +285,23 @@ void CViewDirect2D::handExtractor(cv::InputArray inImage_, cv::OutputArray outIm
 	cv::cvtColor(inImage, hsvImage, CV_BGR2HSV);
 	cv::inRange(hsvImage, hsv_min, hsv_max, hsv_mask);
 	cv::cvtColor(hsv_mask, dstImage, CV_GRAY2BGR);
+
 #pragma omp parallel for	 // HSVの各チャンネルをfloat型(0～1)で取得
 	for (int row = 0; row < size; row++) {
-		cv::Vec3b *src = hsvImage.ptr<cv::Vec3b>(row);
+		cv::Vec3b *srcBGR = inImage.ptr<cv::Vec3b>(row);
+		cv::Vec3b *srcHSV = hsvImage.ptr<cv::Vec3b>(row);
 		for (int col = 0; col < size; col++) {
-			cv::Vec3b hsv = src[col];
+			cv::Vec3b bgr = srcBGR[col];
+			cv::Vec3b hsv = srcHSV[col];
 			int pointBGR = row * size + col;
-			ppf4_Hue[pointBGR] = (byte)hsv[0] / 180;
-			ppf4_Saturation[pointBGR] = (byte)hsv[1] / 255;
-			ppf4_Value[pointBGR] = (byte)hsv[2] / 255;
+			ppf4_Hue[0][pointBGR] = (byte)hsv[0] / 180;
+			ppf4_Saturation[0][pointBGR] = (byte)hsv[1] / 255;
+			ppf4_Value[0][pointBGR] = (byte)hsv[2] / 255;
+
+			if (ActiveCameraArea[col*size + row])
+				tHandLikelihood[0][col*size + row] = HandAna->pf4_RGB2Likelihood[int(bgr[0] * 256 * 256 + bgr[1] * 256 + bgr[2])];
+			else
+				tHandLikelihood[0][col*size + row] = 0.0f;
 		}
 	}
 	dstImage.copyTo(outImage_);
@@ -301,11 +311,12 @@ void CViewDirect2D::handExtractor(cv::InputArray inImage_, cv::OutputArray outIm
 @note この関数は，手指領域の2値化画像(8UC3)から重心を算出し，ドーム上の3D位置を推定する．
 この機能では，inImage_で取得した手指領域の二値化画像の重心を算出し，魚眼レンズやアクリルドームによる歪みを補正する．
 また，先の重心算出では肌色抽出の精度等により正確な値でない可能性があるため，遺伝的アルゴリズムにより正確な値を求め，再び歪み補正を行う．
-@param inImage_		手指領域の2値化画像(8UC3)
-@param outImage_	手指領域の重心推定を行った画像
+@param inImage_				手指領域の2値化画像(8UC3)
+@param outRenderImage02_	手指領域の重心推定画像
+@param outRenderImage03_	掌の重心位置の推定画像
 @sa cv::moments m_handInfo
 **/
-void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outImage_)
+void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outRenderImage02_, cv::OutputArray outRenderImage03_)
 {
 	cv::Mat inImage = inImage_.getMat();
 	cv::Mat single_chImage, dstImage;
@@ -317,6 +328,8 @@ void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray ou
 	cv::Point2f mc = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
 	m_handInfo.hand2DPosX = (int)mc.x;
 	m_handInfo.hand2DPosY = (int)mc.y;
+	cv::circle(dstImage, cv::Point(m_handInfo.hand2DPosX, m_handInfo.hand2DPosY), 2, cv::Scalar(0, 0, 255), -1, CV_AA);
+	dstImage.copyTo(outRenderImage02_);
 
 	/* 掌重心の3D位置(アクリルドーム表面基準)を取得 */
 	m_handInfo.hand3DPosX = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].x;
@@ -326,11 +339,10 @@ void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray ou
 
 	/* 画像のゆがみ補正 */
 	/* 手指領域の重心位置の再計算 */
-	CalcHandCentroidRing(ActiveCameraArea, inImage, single_chImage, &m_handInfo, dstImage);
-	//cv::circle(dstImage, cv::Point(m_handInfo.hand2DPosX, m_handInfo.hand2DPosY), 5, cv::Scalar(0, 0, 255), -1, CV_AA);
+	//CalcHandCentroidRing(ActiveCameraArea, inImage, single_chImage, &m_handInfo, dstImage);
 	/* 画像のゆがみ再補正 */
 
-	dstImage.copyTo(outImage_);
+	dstImage.copyTo(outRenderImage03_);
 }
 
 /** @brief 手指領域の重心を再推定する
@@ -356,9 +368,11 @@ int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, cv::InputAr
 	int tMaxRad = 0.0f;
 	cv::circle(dstImage, cv::Point(tCenterX, tCenterY), 2, cv::Scalar(255, 255, 255), -1, CV_AA);
 
-//#pragma omp parallel for	// 
+#pragma omp parallel for	// 掌の重心位置を推定する
 	for (int tIndexC = 0; tIndexC < Def_NumCentering; tIndexC++) {
-		float tSum = 0, tSumX = 0, tSumY = 0;
+		float tSum = 0;
+		float tSumX = 0;
+		float tSumY = 0;
 		for (int tIndexRad = 0; tIndexRad < handMinPalmR; tIndexRad++) {
 			for (int tIndexAngle = 0; tIndexAngle < m_pNumAngle[tIndexRad]; tIndexAngle++) {
 				int tX = tCenterX + m_ppAngleX[tIndexRad][tIndexAngle];
@@ -1448,8 +1462,11 @@ HRESULT CViewDirect2D::AppIdle(cv::InputArray image_, double fps)
 		}
 	}
 
-	/* 画面の更新 */
-	hr = Render(image, fps);
+	// システムの動作ステータスが停止の場合
+	if(!flagSystemOperation)
+		hr = IdlingRender(fps);
+	else
+		hr = Render(image, fps);
 
 	return hr;
 }
@@ -1473,7 +1490,7 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	handExtractor(renderImage01, renderImage02);
 
 	/* ③掌の中心位置を推定する */
-	CalcHandCentroid(renderImage02, renderImage03);
+	CalcHandCentroid(renderImage02, renderImage02, renderImage03);
 	MyOutputDebugString(L"m_handInfo.hand2DPosX:%d\n", m_handInfo.hand2DPosX);
 	MyOutputDebugString(L"m_handInfo.hand2DPosY:%d\n", m_handInfo.hand2DPosY);
 	MyOutputDebugString(L"m_handInfo.hand3DPosX:%f\n", m_handInfo.hand3DPosX);
@@ -1485,10 +1502,12 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 
 	/* ⑤インプットモードのモデルを作成 */
 
+	cv::circle(renderImage01, cv::Point(size / 2, size / 2), sampRadius, cv::Scalar(0, 255, 0), 1, CV_AA);
+
 	/* 画像データを確保済みのメモリ上へ書き込み */
 	copyImageToMemory(renderImage01, this->memory, 1);	// ①カメラからの入力画像をメモリ上に配置
 	copyImageToMemory(renderImage02, this->memory, 2);	// ②手指領域の抽出画像をメモリ上に配置
-	copyImageToMemory(renderImage03, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
+	copyImageToMemory(renderImage02, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
 	copyImageToMemory(renderImage01, this->memory, 4);	// ④解析情報の取得画像をメモリ上に配置
 	copyImageToMemory(renderImage01, this->memory, 5);	// ⑤インプットモードの判別画像をメモリ上に配置
 
@@ -1519,6 +1538,105 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 				1.0f, //alpha blending multiplier,
 				D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, //interpolation mode,
 				D2D1::RectF(0.0f, 0.0f, size*5, size)); //source rectangle
+		}
+
+		/* テキストフォーマットの生成 */
+		{
+			pDWFactory->CreateTextFormat(
+				L"Meiryo"						// フォント名
+				, NULL							// フォントコレクションの指定
+				, DWRITE_FONT_WEIGHT_NORMAL		// テキストオブジェクトのフォントの太さ
+				, DWRITE_FONT_STYLE_NORMAL		// テキストオブジェクトのフォントスタイル
+				, DWRITE_FONT_STRETCH_NORMAL	// テキストオブジェクトのフォント伸縮
+				, 16							// フォントサイズ(DIP単位)
+				, L""							// ロケール名を含む文字配列
+				, &pTextFormat					// 新しく作成されたテキスト形式オブジェクトへのポインタアドレスを格納
+			);
+		}
+
+		/* 経過時間が1秒未満であれば描画するfpsのテキストを更新しない */
+		if (totalTime < 1.0f) {
+			totalTime += (1 / fps);
+		}
+		else {
+			strText = L"現在の実行速度：" + std::to_wstring((int)fps) + L"fps";
+			totalTime = 0.0;
+		}
+
+		/* テキストの描画 https://msdn.microsoft.com/en-us/library/Dd371919(v=VS.85).aspx */
+		if (NULL != pBrush && NULL != pTextFormat) {
+			m_pRenderTarget->DrawText(
+				strText.c_str()		// 文字列
+				, strText.size()    // 文字数
+				, pTextFormat		// 描画するテキストの書式設定の詳細
+				, &D2D1::RectF(0, 0, oTargetSize.width, oTargetSize.height) // テキストが描画される領域のサイズと位置
+				, pBrush			// テキストをペイントするために使用されるブラシ
+				, D2D1_DRAW_TEXT_OPTIONS_NONE	// テキストをピクセル境界にスナップするかどうか、テキストをレイアウト矩形にクリップするかどうかを示す値
+			);
+		}
+
+		/* 終了 */
+		m_pRenderTarget->EndDraw();
+	}
+
+	// 描画終了
+	::EndPaint(this->m_hWndViewTarget, &tPaintStruct);
+
+	return hResult;
+}
+
+/** @brief システム非稼働時にウィンドウへのレンダリングを実行する．
+@note この関数は，KHAKIのメインウィンドウへ各画像のレンダリング処理を適用する．
+この機能では，KHAKIシステムが非稼働時の際に，画像をレンダリングする領域を黒色に初期化する
+@param fps		システムが実際に稼働しているフレームレート
+@return HRESULTエラーコードを返す
+@sa Render　copyImageToMemory m_pRenderTarget
+**/
+HRESULT CViewDirect2D::IdlingRender(double fps)
+{
+	MyOutputDebugString(L"	IdlingRender()を実行しました．\n");
+	HRESULT hResult = S_OK;
+	/* ①cv::Mat形式で画像を取得 */
+	renderImage01 = cv::Mat::zeros(size, size, CV_8UC3);
+	renderImage02 = cv::Mat::zeros(size, size, CV_8UC3);
+	renderImage03 = cv::Mat::zeros(size, size, CV_8UC3);
+	renderImage04 = cv::Mat::zeros(size, size, CV_8UC3);
+	renderImage05 = cv::Mat::zeros(size, size, CV_8UC3);
+
+	/* 画像データを確保済みのメモリ上へ書き込み */
+	copyImageToMemory(renderImage01, this->memory, 1);	// ①カメラからの入力画像をメモリ上に配置
+	copyImageToMemory(renderImage02, this->memory, 2);	// ②手指領域の抽出画像をメモリ上に配置
+	copyImageToMemory(renderImage02, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
+	copyImageToMemory(renderImage01, this->memory, 4);	// ④解析情報の取得画像をメモリ上に配置
+	copyImageToMemory(renderImage01, this->memory, 5);	// ⑤インプットモードの判別画像をメモリ上に配置
+
+	// ターゲットサイズの取得
+	D2D1_SIZE_F oTargetSize = m_pRenderTarget->GetSize();
+
+	// 描画開始
+	PAINTSTRUCT tPaintStruct;
+	::BeginPaint(this->m_hWndViewTarget, &tPaintStruct);
+
+	/*
+	レンダリング処理
+	*/
+	{
+		/* 開始 */
+		m_pRenderTarget->BeginDraw();
+
+		/* 背景のクリア */
+		D2D1_COLOR_F oBKColor = D2D1::ColorF(D2D1::ColorF::LightSlateGray);
+		m_pRenderTarget->Clear(oBKColor);
+
+		/* Bitmapの描画 */
+		{
+			pBitmap->CopyFromMemory(NULL, memory, size * 5 * 4);
+			m_pRenderTarget->DrawBitmap(
+				pBitmap, //the bitmap to draw [a portion of],
+				D2D1::RectF(0.0f, 0.0f, 200 * 5, 200), //destination rectangle,
+				1.0f, //alpha blending multiplier,
+				D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, //interpolation mode,
+				D2D1::RectF(0.0f, 0.0f, size * 5, size)); //source rectangle
 		}
 
 		/* テキストフォーマットの生成 */

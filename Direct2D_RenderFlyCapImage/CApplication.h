@@ -17,6 +17,7 @@ public:
 	virtual int Run();	// メッセージループ関数Run
 	virtual int ExitInstance();	// インスタンス終了処理関数ExitInstance
 	virtual BOOL OnIdle(LONG lCount);	// アイドル処理関数OnIdle
+	virtual void getInputImage(cv::OutputArray outImage_);
 
 	/* 純粋仮想関数 */
 	virtual BOOL InitInstance(HINSTANCE hInstance, LPTSTR lpCmdLine, int nShowCmd) = 0;		// インスタンス初期化関数 InitInstance

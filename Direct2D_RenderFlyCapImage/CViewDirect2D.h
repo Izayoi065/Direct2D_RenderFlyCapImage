@@ -1,8 +1,10 @@
 #pragma once
 #include "CWinBase.h"
+#include "HandAnalyzer.h"
 
 /* 前方宣言 */
 class C_WinBase;
+class HandAnalyzer;
 class CApplication;
 class FlyCap2CVWrapper;
 
@@ -72,7 +74,6 @@ class CViewDirect2D :
 		bool FlagL;	// 認識している手が右手か左手かのフラグ
 	}S_HANDINF;
 private:
-	static const unsigned size = 504U;	// カメラからの入力画像の1辺のサイズ
 	double totalTime = 0;		// 描画されたフレームレートの更新タイミングを1秒毎に固定するための管理用
 	BOOL g_InitD2D = false;		// 2重初期化防止
 	ID2D1Factory * m_pD2d1Factory;				// 
@@ -89,9 +90,9 @@ private:
 public:
 	FlyCap2CVWrapper* FlyCap;
 	int NumRadius = 0;
-	int handMinPalmR;
-	int handMaxPalmR;
-	float* ParamWeight;
+	int handMinPalmR;	//画像上での掌の最小半径
+	int handMaxPalmR;	//画像上での掌の最大半径
+	float* ParamWeight;	//円形テーブルの各半径に対する加重平均のウェイト→中心付近は掌のため尤度の優先度が高くなる＆周辺では指の間とか混ざるから尤度の優先度が低くなる
 	int *m_pNumAngle;	// 円形テーブルの各半径に対する円周の長さ（サンプリング点の数）
 	int **m_ppAngleX;	// サンプリング点のX位置
 	int **m_ppAngleY;	// サンプリング点のY位置
@@ -106,10 +107,6 @@ public:
 	cv::Mat renderImage04;		// ④解析情報の取得画像
 	cv::Mat renderImage05;		// ⑤インプットモードの判別画像
 	unsigned char ActiveCameraArea[size*size];	// カメラで撮影された範囲
-
-	float ppf4_Hue[size*size];
-	float ppf4_Saturation[size*size];
-	float ppf4_Value[size*size];
 	S_HANDINF m_handInfo;
 	float FixX[size*size];
 	float FixY[size*size];
@@ -120,7 +117,7 @@ public:
 	void ReleaseD2D();
 	void copyImageToMemory(cv::InputArray image_, byte* data, int num);
 	void handExtractor(cv::InputArray inImage_, cv::OutputArray outImage_);
-	void CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outImage_);
+	void CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outRenderImage02_, cv::OutputArray outRenderImage03_);
 	//void CorrectionImageImageDistortion(unsigned char* tActiveArea, cv::InputArray inImage_, float* p_tH_IN, float* p_tS_IN, float* p_tV_IN, S_HANDINF *pHandInf_t, cv::OutputArray outImage_, float* p_tH_OUT, float* p_tS_OUT, float* p_tV_OUT);
 	int CalcHandCentroidRing(unsigned char* tActiveArea, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF *pHandInf_t, cv::OutputArray outImage_);
 
@@ -149,6 +146,7 @@ public:
 
 	HRESULT AppIdle(cv::InputArray image_, double fps);
 	HRESULT	Render(cv::InputArray image_, double fps);
+	HRESULT	IdlingRender(double fps);
 	//void DrawPix(cv::InputArray inImage_);
 
 	/* 仮想関数 */

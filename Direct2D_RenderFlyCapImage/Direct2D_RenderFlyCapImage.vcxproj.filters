@@ -54,6 +54,9 @@
     <ClInclude Include="CWinBase.h">
       <Filter>ヘッダー ファイル\ViewerClass</Filter>
     </ClInclude>
+    <ClInclude Include="HandAnalyzer.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -78,6 +81,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="FPSCounter.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="HandAnalyzer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
