@@ -89,6 +89,9 @@ private:
 public:
 	FlyCap2CVWrapper* FlyCap;
 	int NumRadius = 0;
+	int handMinPalmR;
+	int handMaxPalmR;
+	float* ParamWeight;
 	int *m_pNumAngle;	// 円形テーブルの各半径に対する円周の長さ（サンプリング点の数）
 	int **m_ppAngleX;	// サンプリング点のX位置
 	int **m_ppAngleY;	// サンプリング点のY位置
@@ -103,6 +106,7 @@ public:
 	cv::Mat renderImage04;		// ④解析情報の取得画像
 	cv::Mat renderImage05;		// ⑤インプットモードの判別画像
 	unsigned char ActiveCameraArea[size*size];	// カメラで撮影された範囲
+
 	float ppf4_Hue[size*size];
 	float ppf4_Saturation[size*size];
 	float ppf4_Value[size*size];
@@ -117,7 +121,10 @@ public:
 	void copyImageToMemory(cv::InputArray image_, byte* data, int num);
 	void handExtractor(cv::InputArray inImage_, cv::OutputArray outImage_);
 	void CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outImage_);
-	void AnalyzeHandInf(cv::InputArray inImage_, cv::OutputArray outImage_);
+	//void CorrectionImageImageDistortion(unsigned char* tActiveArea, cv::InputArray inImage_, float* p_tH_IN, float* p_tS_IN, float* p_tV_IN, S_HANDINF *pHandInf_t, cv::OutputArray outImage_, float* p_tH_OUT, float* p_tS_OUT, float* p_tV_OUT);
+	int CalcHandCentroidRing(unsigned char* tActiveArea, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF *pHandInf_t, cv::OutputArray outImage_);
+
+	void AnalyzeHandInf(cv::InputArray inImage_, cv::OutputArray outRenderImage04_, cv::OutputArray outRenderImage05_);
 	int detectFinger2to5(int tCenterX, int tCenterY, cv::InputArray likelihoodArea, float *p_HueImage,
 		float *p_SaturationImage, float *ValueImage, S_HANDINF *pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_);
 	int FindChain(int tCenterX, int tCenterY, int Line2CircleR, int MinR, int MaxR, int NumSmpR,
@@ -139,6 +146,7 @@ public:
 		S_HANDINF *pHandInf_t, cv::InputArray inImage_, cv::OutputArray outImage_);
 	void GetEdge(En_GetEdge e_tGetEdge, float *likelihoodArea, float *p_HueImage, float *p_SaturationImage, float *ValueImage,
 		int tMin, int tMax, XMFLOAT2 *pF2_tPos, XMFLOAT2 *pF2_tVec, float *p_tMaxLikelihood, int *p_tMaxIndex);
+
 	HRESULT AppIdle(cv::InputArray image_, double fps);
 	HRESULT	Render(cv::InputArray image_, double fps);
 	//void DrawPix(cv::InputArray inImage_);
