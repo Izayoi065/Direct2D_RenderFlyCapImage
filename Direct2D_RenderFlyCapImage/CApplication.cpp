@@ -21,6 +21,7 @@ CApplication::CApplication() {
 	/* メンバの初期化 */
 	m_hInstance = NULL;	// インスタンスハンドルをNULL
 	m_pWindow = NULL;	// ウィンドウオブジェクトをNULL
+	FlyCap = new FlyCap2CVWrapper();
 }
 
 /* デストラクタ ~CApplication */
@@ -83,9 +84,9 @@ BOOL CApplication::OnIdle(LONG lCount) {
 void CApplication::getInputImage(cv::OutputArray outImage_)
 {
 	cv::Mat image;
-	//image = FlyCap.readImage();
-	image = cv::imread("data/resources/handImage03.png");
-	//cv::resize(image, image, cv::Size(), 0.5, 0.5);
+	image = FlyCap->readImage();
+	//image = cv::imread("data/resources/handImage03.png");
+	cv::resize(image, image, cv::Size(), 0.5, 0.5);
 
 	image.copyTo(outImage_);
 }

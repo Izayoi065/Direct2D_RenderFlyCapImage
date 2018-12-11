@@ -10,6 +10,9 @@
  *　　　：新規登録
  *
  ****************************************************************************************************/
+/* 定義関数 */
+#define SAFE_DELETE(p) { if(p) { delete (p); (p)=NULL; } }
+
  /* インクルードファイル */
 #include "CApplication.h"	// アプリケーションクラス
 #include "CWinBase.h"		// 基底ウィンドウクラス
@@ -468,6 +471,8 @@ LRESULT CWinBase::DynamicWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 	case WM_DESTROY:
 		// WM_DESTROYブロック
 	{
+		// クラスオブジェクトを破棄
+		SAFE_DELETE(HandAna);
 		// OnDestroyに任せる.
 		OnDestroy();	// OnDestroyを呼ぶ
 		// 既定の処理

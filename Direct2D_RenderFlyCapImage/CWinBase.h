@@ -74,9 +74,10 @@ public:
 	int sampCenterY;
 	float sampRadius;
 	float tHandLikelihood[3][size*size];			// 手指領域である可能性を数値化
-	float ppf4_Hue[3][size*size];
-	float ppf4_Saturation[3][size*size];
-	float ppf4_Value[3][size*size];
+	float ppf4_Hue[3][size*size];			// 画像のH成分：[0]原画像 [1]一度目の補正結果 [2]二度目の補正結果 
+	float ppf4_Saturation[3][size*size];	// 画像のS成分：[0]原画像 [1]一度目の補正結果 [2]二度目の補正結果 
+	float ppf4_Value[3][size*size];			// 画像のV成分：[0]原画像 [1]一度目の補正結果 [2]二度目の補正結果 
+	float ppf4_UV[2][size*size * 2];		// 歪み補正の変換テーブル：[0]一度目の補正結果　[1]二度目の補正結果
 	BOOL flag_DragSapmling = FALSE;
 	BOOL flagCapture = false;
 	BOOL flagSystemOperation = false;

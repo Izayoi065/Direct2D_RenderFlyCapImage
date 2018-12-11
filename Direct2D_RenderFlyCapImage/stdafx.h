@@ -14,6 +14,7 @@
 #define FC2_EXT ".lib"
 #endif
 #pragma comment( lib, "winmm.lib")
+#pragma comment( lib, "d3d11.lib")
 #pragma comment( lib, "d2d1.lib")
 #pragma comment( lib, "dwrite.lib" )
 #pragma comment( lib, "opencv_world340" CV_EXT)
@@ -61,6 +62,7 @@
 // TODO: プログラムに必要な追加ヘッダーをここで参照してください
 /* DirectX11関連 */
 #include <d2d1.h>
+#include <d3d11.h>
 #include <dwrite.h>
 //#include <DirectXMath.h>
 

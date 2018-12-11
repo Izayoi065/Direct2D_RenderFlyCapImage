@@ -16,7 +16,6 @@
 #include "CMainApplication.h"	// メインアプリケーションクラス
 #include "CWinBase.h"			// 基底ウィンドウクラス
 #include "CViewDirect2D.h"		// DirectX2D関連の初期化クラス
-#include "FlyCap2CVWrapper.h"	// OpenCV用のFlyCapture2ラッパークラス
 #include "FPSCounter.h"
 
 /* コンストラクタ CMainApplication */
@@ -161,7 +160,6 @@ int CMainApplication::Run() {
 	MSG msg;			// メッセージ情報msg
 	LONG lCount = 0;	// ループ回数lCount
 
-	FlyCap2CVWrapper FlyCap;
 	FPSCounter FPS(10);
 
 	HRESULT hr = S_OK;

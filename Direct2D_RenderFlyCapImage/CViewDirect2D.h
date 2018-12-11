@@ -76,12 +76,15 @@ class CViewDirect2D :
 private:
 	double totalTime = 0;		// 描画されたフレームレートの更新タイミングを1秒毎に固定するための管理用
 	BOOL g_InitD2D = false;		// 2重初期化防止
+	/* Direct2D関連 */
 	ID2D1Factory * m_pD2d1Factory;				// 
 	ID2D1HwndRenderTarget * m_pRenderTarget;	// レンダリングのターゲット
 	IDWriteTextFormat* pTextFormat;				// テキストの書式設定に使用するフォント プロパテ，段落プロパティ及びロケール情報
 	IDWriteFactory* pDWFactory;					// 全てのDirectWriteオブジェクトのルート・ファクトリ・インターフェース
 	ID2D1SolidColorBrush* pBrush;				// 
 	ID2D1Bitmap * pBitmap;						// 
+	/* Direct3D関連 */
+
 	static XMFLOAT3 m_pV3PixToVec[size*size];
 	std::wstring strText = L"";					// ウィンドウに表示するfps用テキスト
 	byte *memory;	// cv::Mat -> ID2D1Bitmap用のバッファ
@@ -118,8 +121,9 @@ public:
 	void copyImageToMemory(cv::InputArray image_, byte* data, int num);
 	void handExtractor(cv::InputArray inImage_, cv::OutputArray outImage_);
 	void CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outRenderImage02_, cv::OutputArray outRenderImage03_);
-	//void CorrectionImageImageDistortion(unsigned char* tActiveArea, cv::InputArray inImage_, float* p_tH_IN, float* p_tS_IN, float* p_tV_IN, S_HANDINF *pHandInf_t, cv::OutputArray outImage_, float* p_tH_OUT, float* p_tS_OUT, float* p_tV_OUT);
-	int CalcHandCentroidRing(unsigned char* tActiveArea, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF *pHandInf_t, cv::OutputArray outImage_);
+	void CorrectionImageImageDistortion(unsigned char* tActiveArea, float* pf4_HandLikelihood_IN, float* p_tH_IN, float* p_tS_IN, float* p_tV_IN,
+		S_HANDINF *pHandInf_t, float* p_tUV_OUT, float* pf4_HandLikelihood_OUT, float* p_tH_OUT, float* p_tS_OUT, float* p_tV_OUT, cv::InputArray inImage_, cv::OutputArray outImage_);
+	int CalcHandCentroidRing(unsigned char* tActiveArea, float* pf4_HandLikelihood, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF *pHandInf_t, cv::OutputArray outImage_);
 
 	void AnalyzeHandInf(cv::InputArray inImage_, cv::OutputArray outRenderImage04_, cv::OutputArray outRenderImage05_);
 	int detectFinger2to5(int tCenterX, int tCenterY, cv::InputArray likelihoodArea, float *p_HueImage,

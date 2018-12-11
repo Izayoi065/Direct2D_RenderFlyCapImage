@@ -34,6 +34,9 @@
 #define Def_EdgeFindTop 0.975
 #define Def_NumPressure 16
 
+#define SAFE_DELETE(p) { if(p) { delete (p); (p)=NULL; } }
+
+
 /* インクルードファイル */
 #include "CViewDirect2D.h"	// DirectX2D関連の初期化クラス
 #include "resource.h"		// リソースファイル
@@ -60,14 +63,16 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 	handMinPalmR = int((size*Def_MinPalmR) / (Hand_DomeR*Def_FOV));
 	handMaxPalmR = int((size*Def_MaxPalmR) / (Hand_DomeR*Def_FOV));
 	FingerWidth = (int)(size*Def_FingerW) / (Hand_DomeR*Def_FOV);
-#pragma omp parallel for
+
+#pragma omp parallel for // cv::Mat -> Bitmapへの中継用メモリを初期化
 	for (int i = 0; i < sizeof(memory); i++) {
 		memory[i] = 0;
 	}
 
 	NumRadius = (size / 2)*Def_MAXActiveRate;
 	int NumRadiusSq = NumRadius * NumRadius;
-#pragma omp parallel for
+
+#pragma omp parallel for // 画像処理に使用する範囲を設定
 	for (int x = 0; x<size; x++)
 	{
 		for (int y = 0; y < size; y++)
@@ -84,6 +89,21 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 	m_ppAngleX = (int **)malloc(sizeof(m_ppAngleX[0])*(int)NumRadius);
 	m_ppAngleY = (int **)malloc(sizeof(m_ppAngleY[0])*(int)NumRadius);
 	ParamWeight = (float*)malloc(sizeof(ParamWeight[0])*(handMaxPalmR));
+
+	int IndexRad = 0, IndexAngle = 0;
+#pragma omp parallel for private(IndexAngle) // 円形テーブルの各半径に対する円周の長さ（サンプリング点の数）を作成
+	for (IndexRad = 0; IndexRad < (int)NumRadius; IndexRad++)
+	{
+		m_pNumAngle[IndexRad] = (int)(2.0f*(IndexRad)*Def_PI);
+		m_ppAngleX[IndexRad] = (int *)malloc(sizeof(m_ppAngleX[0])*m_pNumAngle[IndexRad]);
+		m_ppAngleY[IndexRad] = (int *)malloc(sizeof(m_ppAngleY[0])*m_pNumAngle[IndexRad]);
+		for (IndexAngle = 0; IndexAngle < (int)m_pNumAngle[IndexRad]; IndexAngle++)
+		{
+			m_ppAngleX[IndexRad][IndexAngle] = (int)((IndexRad)*cosf(2.0f*Def_PI*(float)IndexAngle / (float)m_pNumAngle[IndexRad]));
+			m_ppAngleY[IndexRad][IndexAngle] = (int)((IndexRad)*sinf(2.0f*Def_PI*(float)IndexAngle / (float)m_pNumAngle[IndexRad]));
+		}
+	}
+
 #pragma omp parallel for	// 円形テーブルの作成
 	for (int i = 0; i < handMaxPalmR; i++) {
 		ParamWeight[i] = (1.0f + cosf(Def_PI*i / (float)handMaxPalmR)) / 2.0f;
@@ -91,25 +111,12 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 
 #pragma omp parallel for	// 配列型変数のメモリを動的に確保
 	for (int tIndexR = 0; tIndexR < Def_NumSmpR; tIndexR++) {
-		ppf4_Sample[tIndexR]	= (float*)malloc(sizeof(ppf4_Sample[0])*m_pNumAngle[int((size / 2)*Def_MAXActiveRate) - 1]);
-		ppf4_SampleS[tIndexR]	= (float*)malloc(sizeof(ppf4_SampleS[0])*m_pNumAngle[int((size / 2)*Def_MAXActiveRate) - 1]);
-		ppi4_Peek[tIndexR]		= (int*)malloc(sizeof(ppi4_Peek[0])*m_pNumAngle[int((size / 2)*Def_MAXActiveRate) - 1]/2);
+		ppf4_Sample[tIndexR] = (float*)malloc(sizeof(ppf4_Sample[0])*m_pNumAngle[int((size / 2)*Def_MAXActiveRate) - 1]);
+		ppf4_SampleS[tIndexR] = (float*)malloc(sizeof(ppf4_SampleS[0])*m_pNumAngle[int((size / 2)*Def_MAXActiveRate) - 1]);
+		ppi4_Peek[tIndexR] = (int*)malloc(sizeof(ppi4_Peek[0])*m_pNumAngle[int((size / 2)*Def_MAXActiveRate) - 1] / 2);
 	}
 
-#pragma omp parallel for
-	for (int IndexRad = 0; IndexRad < (int)NumRadius; IndexRad++)
-	{
-		m_pNumAngle[IndexRad] = (int)(2.0f*(IndexRad)*Def_PI);
-		m_ppAngleX[IndexRad] = (int *)malloc(sizeof(m_ppAngleX[0])*m_pNumAngle[IndexRad]);
-		m_ppAngleY[IndexRad] = (int *)malloc(sizeof(m_ppAngleY[0])*m_pNumAngle[IndexRad]);
-		for (int IndexAngle = 0; IndexAngle < (int)m_pNumAngle[IndexRad]; IndexAngle++)
-		{
-			m_ppAngleX[IndexRad][IndexAngle] = (int)((IndexRad)*cosf(2.0f*Def_PI*(float)IndexAngle / (float)m_pNumAngle[IndexRad]));
-			m_ppAngleY[IndexRad][IndexAngle] = (int)((IndexRad)*sinf(2.0f*Def_PI*(float)IndexAngle / (float)m_pNumAngle[IndexRad]));
-		}
-	}
-
-#pragma omp parallel for
+#pragma omp parallel for // 各ピクセルが対応する任意のドーム座標へのベクトルを作成
 	for (int y = 0; y<size; y++)
 	{
 		for (int x = 0; x < size; x++)
@@ -131,11 +138,12 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 		float f4_tPitch = -f4_tBase * 2.0f / size;
 		float f4_tLikelihood = cos(Def_FOV / 2.0f);
 
-#pragma omp parallel for
-		for (int i4_tIndY = 0; i4_tIndY < size; i4_tIndY++)
+		int i4_tIndX = 0, i4_tIndY = 0;
+#pragma omp parallel for private (i4_tIndY) // ストレッチテーブルの作成
+		for (i4_tIndY = 0; i4_tIndY < size; i4_tIndY++)
 		{
 			float f4_tY0 = IndexToFloat(i4_tIndY, f4_tBase, f4_tPitch);
-			for (int i4_tIndX = 0; i4_tIndX < size; i4_tIndX++)
+			for (i4_tIndX = 0; i4_tIndX < size; i4_tIndX++)
 			{
 				float f4_tX0 = IndexToFloat(i4_tIndX, f4_tBase, f4_tPitch);
 				float f4_tR0 = sqrtf(f4_tX0*f4_tX0 + f4_tY0 * f4_tY0);//補正前半径
@@ -319,7 +327,7 @@ void CViewDirect2D::handExtractor(cv::InputArray inImage_, cv::OutputArray outIm
 void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outRenderImage02_, cv::OutputArray outRenderImage03_)
 {
 	cv::Mat inImage = inImage_.getMat();
-	cv::Mat single_chImage, dstImage;
+	cv::Mat single_chImage, dstImage, dstImage02;
 	inImage.copyTo(dstImage);
 	cv::cvtColor(inImage, single_chImage, CV_BGR2GRAY);
 
@@ -332,17 +340,27 @@ void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray ou
 	dstImage.copyTo(outRenderImage02_);
 
 	/* 掌重心の3D位置(アクリルドーム表面基準)を取得 */
-	m_handInfo.hand3DPosX = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].x;
-	m_handInfo.hand3DPosY = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].y;
-	m_handInfo.hand3DPosZ = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].z;
-	m_handInfo.handRadius = (Hand_DomeR*Def_FOV) / size;
+	if ((0 < m_handInfo.hand2DPosX && m_handInfo.hand2DPosX < size) && (0 < m_handInfo.hand2DPosY && m_handInfo.hand2DPosY < size)) {
+		m_handInfo.hand3DPosX = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].x*Hand_DomeR;
+		m_handInfo.hand3DPosY = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].y*Hand_DomeR;
+		m_handInfo.hand3DPosZ = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].z*Hand_DomeR;
+		m_handInfo.handRadius = (Hand_DomeR*Def_FOV) / size;
+	}
 
 	/* 画像のゆがみ補正 */
+	CorrectionImageImageDistortion(ActiveCameraArea, tHandLikelihood[0], ppf4_Hue[0], ppf4_Saturation[0], ppf4_Value[0], 
+		&m_handInfo, ppf4_UV[0], tHandLikelihood[1], ppf4_Hue[1], ppf4_Saturation[1], ppf4_Value[1], inImage, dstImage02);
+
 	/* 手指領域の重心位置の再計算 */
-	//CalcHandCentroidRing(ActiveCameraArea, inImage, single_chImage, &m_handInfo, dstImage);
+	CalcHandCentroidRing(ActiveCameraArea, tHandLikelihood[0], inImage, single_chImage, &m_handInfo, dstImage02);
 	/* 画像のゆがみ再補正 */
 
-	dstImage.copyTo(outRenderImage03_);
+	dstImage02.copyTo(outRenderImage03_);
+}
+
+void CViewDirect2D::CorrectionImageImageDistortion(unsigned char * tActiveArea, float * pf4_HandLikelihood_IN, float * p_tH_IN, float * p_tS_IN, float * p_tV_IN, S_HANDINF * pHandInf_t, float * p_tUV_OUT, float * pf4_HandLikelihood_OUT, float * p_tH_OUT, float * p_tS_OUT, float * p_tV_OUT, cv::InputArray inImage_, cv::OutputArray outImage_)
+{
+	HRESULT hResult;
 }
 
 /** @brief 手指領域の重心を再推定する
@@ -356,7 +374,7 @@ void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray ou
 @param outImage_	重心推定を行った結果の画像
 @sa cv::moments m_handInfo
 **/
-int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF * pHandInf_t, cv::OutputArray outImage_)
+int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, float* pf4_HandLikelihood, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF * pHandInf_t, cv::OutputArray outImage_)
 {
 	cv::Mat inImage = inImage_.getMat();
 	cv::Mat inUVImage = inUVImage_.getMat();
@@ -368,17 +386,17 @@ int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, cv::InputAr
 	int tMaxRad = 0.0f;
 	cv::circle(dstImage, cv::Point(tCenterX, tCenterY), 2, cv::Scalar(255, 255, 255), -1, CV_AA);
 
-#pragma omp parallel for	// 掌の重心位置を推定する
+	// 掌の重心位置を推定する
 	for (int tIndexC = 0; tIndexC < Def_NumCentering; tIndexC++) {
 		float tSum = 0;
 		float tSumX = 0;
 		float tSumY = 0;
-		for (int tIndexRad = 0; tIndexRad < handMinPalmR; tIndexRad++) {
+		for (int tIndexRad = 0; tIndexRad < handMaxPalmR; tIndexRad++) {
 			for (int tIndexAngle = 0; tIndexAngle < m_pNumAngle[tIndexRad]; tIndexAngle++) {
 				int tX = tCenterX + m_ppAngleX[tIndexRad][tIndexAngle];
 				int tY = tCenterY + m_ppAngleY[tIndexRad][tIndexAngle];
 				if ((0 < tX && tX < size) && (0 < tY && tY < size)) {
-					if (Def_ActiveLim < tActiveArea[tY*size+tX]) {
+					if (Def_ActiveLim < pf4_HandLikelihood[tY*size+tX]) {
 						tSum += ParamWeight[tIndexRad];
 						tSumX += m_ppAngleX[tIndexRad][tIndexAngle] * ParamWeight[tIndexRad];
 						tSumY += m_ppAngleY[tIndexRad][tIndexAngle] * ParamWeight[tIndexRad];
@@ -396,22 +414,23 @@ int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, cv::InputAr
 		}
 		tCenterX += 0.5f*(Def_NumCentering - tIndexC)*tSumX / tSum;
 		tCenterY += 0.5f*(Def_NumCentering - tIndexC)*tSumY / tSum;
-		cv::circle(dstImage, cv::Point(tCenterX, tCenterY), 5, cv::Scalar(0, 0, 255), -1, CV_AA);
+		cv::circle(dstImage, cv::Point(tCenterX, tCenterY), 2, cv::Scalar(0, 0, 255), -1, CV_AA);
 	}
 
 	int CenterX = tCenterX;
 	int CenterY = tCenterY;
-#pragma omp parallel for
-	for (int tIndexRad = 0; tIndexRad < handMaxPalmR; tIndexRad++) {
+	int tIndexRad = 0, i4_tIndAng = 0;
+	// サンプリングした重心位置の推定円に内接する最大領域(円)を推定
+	for (tIndexRad = 0; tIndexRad < handMaxPalmR; tIndexRad++) {
 		int i4_tSumR = 0;
 		int i4_tSumX = 0;
 		int i4_tSumY = 0;
-		for (int i4_tIndAng = 0; i4_tIndAng < m_pNumAngle[tIndexRad]; i4_tIndAng++)
+		for (i4_tIndAng = 0; i4_tIndAng < m_pNumAngle[tIndexRad]; i4_tIndAng++)
 		{
 			int i4_tX = CenterX + m_ppAngleX[tIndexRad][i4_tIndAng];
 			int i4_tY = CenterY + m_ppAngleY[tIndexRad][i4_tIndAng];
 
-			if (tActiveArea[i4_tY*size + i4_tX] < Def_ActiveLim)
+			if (pf4_HandLikelihood[i4_tY*size + i4_tX] < Def_ActiveLim)
 			{
 				i4_tSumR += tIndexRad;
 				i4_tSumX += m_ppAngleX[tIndexRad][i4_tIndAng];
@@ -1507,7 +1526,7 @@ HRESULT CViewDirect2D::Render(cv::InputArray image_, double fps)
 	/* 画像データを確保済みのメモリ上へ書き込み */
 	copyImageToMemory(renderImage01, this->memory, 1);	// ①カメラからの入力画像をメモリ上に配置
 	copyImageToMemory(renderImage02, this->memory, 2);	// ②手指領域の抽出画像をメモリ上に配置
-	copyImageToMemory(renderImage02, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
+	copyImageToMemory(renderImage03, this->memory, 3);	// ③掌の中心位置の推定画像をメモリ上に配置
 	copyImageToMemory(renderImage01, this->memory, 4);	// ④解析情報の取得画像をメモリ上に配置
 	copyImageToMemory(renderImage01, this->memory, 5);	// ⑤インプットモードの判別画像をメモリ上に配置
 

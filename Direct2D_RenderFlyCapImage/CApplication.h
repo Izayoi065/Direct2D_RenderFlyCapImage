@@ -1,4 +1,6 @@
 #pragma once
+#include "FlyCap2CVWrapper.h"	// OpenCV用のFlyCapture2ラッパークラス
+
 /* 前方宣言 */
 class CViewDirect2D;	// ウィンドウクラス
 
@@ -9,6 +11,7 @@ public:
 	HINSTANCE m_hInstance;	// アプリケーションインスタンスハンドルm_hInstance
 	CViewDirect2D *m_pWindow;		// ウィンドウクラスポインタm_pWindow
 	double fps;
+	FlyCap2CVWrapper* FlyCap;
 public:
 	CApplication();				// コンストラクタ
 	virtual ~CApplication();	// デストラクタ
