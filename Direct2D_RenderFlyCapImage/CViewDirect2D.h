@@ -84,6 +84,18 @@ private:
 	ID2D1SolidColorBrush* pBrush;				// 
 	ID2D1Bitmap * pBitmap;						// 
 	/* Direct3D関連 */
+	ID3D11Device*					m_pDevice;				// デバイス
+	ID3D11DeviceContext*			m_pImmediateContext;	// デバイス・コンテキスト
+	IDXGISwapChain*					m_pSwapChain;			// スワップ・チェイン
+	ID3D11RenderTargetView*			m_pRenderTargetView;	// 描画ターゲット・ビュー
+	ID3D11Texture2D*				m_pDepthStencilTexture;	// 深度/ステンシル
+	ID3D11DepthStencilView*			m_pDepthStencilView;	// 深度/ステンシル・ビュー
+	D3D11_VIEWPORT					m_Viewport;				// ビューポート
+	ID3D11Buffer*					m_pVertexBuffer;		// 
+	ID3D11InputLayout*				m_pInputLayout;			// 
+	ID3D11VertexShader*				m_pVertexShader;		// Vertexシェーダー
+	ID3D11PixelShader*				m_pPixelShader;			// pixelシェーダー
+	ID3D11SamplerState*				SampleLinear;			// テクスチャーのサンプラー
 
 	static XMFLOAT3 m_pV3PixToVec[size*size];
 	std::wstring strText = L"";					// ウィンドウに表示するfps用テキスト

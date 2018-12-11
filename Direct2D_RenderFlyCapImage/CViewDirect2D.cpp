@@ -36,7 +36,6 @@
 
 #define SAFE_DELETE(p) { if(p) { delete (p); (p)=NULL; } }
 
-
 /* インクルードファイル */
 #include "CViewDirect2D.h"	// DirectX2D関連の初期化クラス
 #include "resource.h"		// リソースファイル
@@ -73,9 +72,9 @@ CViewDirect2D::CViewDirect2D(CApplication * pApp) : CWinBase(pApp)
 	int NumRadiusSq = NumRadius * NumRadius;
 
 #pragma omp parallel for // 画像処理に使用する範囲を設定
-	for (int x = 0; x<size; x++)
+	for (int y = 0; y < size; y++)
 	{
-		for (int y = 0; y < size; y++)
+		for (int x = 0; x < size; x++)
 		{
 			float tRad = (x - (size / 2)) * (x - (size / 2)) * (y - (size / 2)) * (y - (size / 2));
 			if (tRad < NumRadiusSq)
@@ -306,10 +305,10 @@ void CViewDirect2D::handExtractor(cv::InputArray inImage_, cv::OutputArray outIm
 			ppf4_Saturation[0][pointBGR] = (byte)hsv[1] / 255;
 			ppf4_Value[0][pointBGR] = (byte)hsv[2] / 255;
 
-			if (ActiveCameraArea[col*size + row])
-				tHandLikelihood[0][col*size + row] = HandAna->pf4_RGB2Likelihood[int(bgr[0] * 256 * 256 + bgr[1] * 256 + bgr[2])];
+			if (ActiveCameraArea[pointBGR])
+				tHandLikelihood[0][pointBGR] = HandAna->pf4_RGB2Likelihood[int(bgr[0] * 256 * 256 + bgr[1] * 256 + bgr[2])];
 			else
-				tHandLikelihood[0][col*size + row] = 0.0f;
+				tHandLikelihood[0][pointBGR] = 0.0f;
 		}
 	}
 	dstImage.copyTo(outImage_);
@@ -341,15 +340,14 @@ void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray ou
 
 	/* 掌重心の3D位置(アクリルドーム表面基準)を取得 */
 	if ((0 < m_handInfo.hand2DPosX && m_handInfo.hand2DPosX < size) && (0 < m_handInfo.hand2DPosY && m_handInfo.hand2DPosY < size)) {
-		m_handInfo.hand3DPosX = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].x*Hand_DomeR;
-		m_handInfo.hand3DPosY = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].y*Hand_DomeR;
-		m_handInfo.hand3DPosZ = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].z*Hand_DomeR;
+		m_handInfo.hand3DPosX = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].x;
+		m_handInfo.hand3DPosY = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].y;
+		m_handInfo.hand3DPosZ = m_pV3PixToVec[m_handInfo.hand2DPosY*size + m_handInfo.hand2DPosX].z;
 		m_handInfo.handRadius = (Hand_DomeR*Def_FOV) / size;
 	}
 
 	/* 画像のゆがみ補正 */
-	CorrectionImageImageDistortion(ActiveCameraArea, tHandLikelihood[0], ppf4_Hue[0], ppf4_Saturation[0], ppf4_Value[0], 
-		&m_handInfo, ppf4_UV[0], tHandLikelihood[1], ppf4_Hue[1], ppf4_Saturation[1], ppf4_Value[1], inImage, dstImage02);
+	//CorrectionImageImageDistortion(ActiveCameraArea, tHandLikelihood[0], ppf4_Hue[0], ppf4_Saturation[0], ppf4_Value[0], &m_handInfo, ppf4_UV[0], tHandLikelihood[1], ppf4_Hue[1], ppf4_Saturation[1], ppf4_Value[1], inImage, dstImage02);
 
 	/* 手指領域の重心位置の再計算 */
 	CalcHandCentroidRing(ActiveCameraArea, tHandLikelihood[0], inImage, single_chImage, &m_handInfo, dstImage02);
@@ -358,9 +356,11 @@ void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray ou
 	dstImage02.copyTo(outRenderImage03_);
 }
 
-void CViewDirect2D::CorrectionImageImageDistortion(unsigned char * tActiveArea, float * pf4_HandLikelihood_IN, float * p_tH_IN, float * p_tS_IN, float * p_tV_IN, S_HANDINF * pHandInf_t, float * p_tUV_OUT, float * pf4_HandLikelihood_OUT, float * p_tH_OUT, float * p_tS_OUT, float * p_tV_OUT, cv::InputArray inImage_, cv::OutputArray outImage_)
+void CViewDirect2D::CorrectionImageImageDistortion(unsigned char * tActiveArea, float * pf4_HandLikelihood_IN, float * p_tH_IN, float * p_tS_IN, float * p_tV_IN,
+	S_HANDINF * pHandInf_t, float * p_tUV_OUT, float * pf4_HandLikelihood_OUT, float * p_tH_OUT, float * p_tS_OUT, float * p_tV_OUT,
+	cv::InputArray inImage_, cv::OutputArray outImage_)
 {
-	HRESULT hResult;
+	
 }
 
 /** @brief 手指領域の重心を再推定する
@@ -387,6 +387,7 @@ int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, float* pf4_
 	cv::circle(dstImage, cv::Point(tCenterX, tCenterY), 2, cv::Scalar(255, 255, 255), -1, CV_AA);
 
 	// 掌の重心位置を推定する
+#pragma omp parallel for
 	for (int tIndexC = 0; tIndexC < Def_NumCentering; tIndexC++) {
 		float tSum = 0;
 		float tSumX = 0;
@@ -407,14 +408,15 @@ int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, float* pf4_
 						tSumY -= m_ppAngleY[tIndexRad][tIndexAngle] * ParamWeight[tIndexRad];
 					}
 
-					if(tIndexRad == handMaxPalmR - 1)
-						cv::circle(dstImage, cv::Point(tX, tY), 1, cv::Scalar(0, 0, 255), -1, CV_AA);
+					//if(tIndexRad == handMaxPalmR - 1)
+						//cv::circle(dstImage, cv::Point(tX, tY), 1, cv::Scalar(0, 0, 255), -1, CV_AA);
 				}
 			}
 		}
 		tCenterX += 0.5f*(Def_NumCentering - tIndexC)*tSumX / tSum;
 		tCenterY += 0.5f*(Def_NumCentering - tIndexC)*tSumY / tSum;
 		cv::circle(dstImage, cv::Point(tCenterX, tCenterY), 2, cv::Scalar(0, 0, 255), -1, CV_AA);
+		cv::circle(dstImage, cv::Point(tCenterX, tCenterY), handMaxPalmR - 1, cv::Scalar(0, 0, 255), 2, CV_AA);
 	}
 
 	int CenterX = tCenterX;
@@ -483,7 +485,7 @@ int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, float* pf4_
 	}
 	*/
 
-	cv::circle(dstImage, cv::Point(tCenterX, tCenterY), 2, cv::Scalar(0, 0, 255), -1, CV_AA);
+	cv::circle(dstImage, cv::Point(tCenterX, tCenterY), 5, cv::Scalar(0, 0, 255), -1, CV_AA);
 
 	dstImage.copyTo(outImage_);
 
