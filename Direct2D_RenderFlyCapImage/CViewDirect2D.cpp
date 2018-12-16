@@ -291,6 +291,8 @@ void CViewDirect2D::handExtractor(cv::InputArray inImage_, cv::OutputArray outIm
 	cv::Mat hsvImage, hsv_mask, dstImage;
 	cv::cvtColor(inImage, hsvImage, CV_BGR2HSV);
 	cv::inRange(hsvImage, hsv_min, hsv_max, hsv_mask);
+	cv::morphologyEx(hsv_mask, hsv_mask, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)), cv::Point(-1, -1), 1);	// オープニング処理：内部ノイズの穴埋め
+	cv::morphologyEx(hsv_mask, hsv_mask, cv::MORPH_OPEN, cv::Mat(), cv::Point(-1, -1), 1);	// クロージング処理：ゴマ塩ノイズの除去
 	cv::cvtColor(hsv_mask, dstImage, CV_GRAY2BGR);
 
 #pragma omp parallel for	 // HSVの各チャンネルをfloat型(0～1)で取得
@@ -306,7 +308,7 @@ void CViewDirect2D::handExtractor(cv::InputArray inImage_, cv::OutputArray outIm
 			ppf4_Value[0][pointBGR] = (byte)hsv[2] / 255;
 
 			if (ActiveCameraArea[pointBGR])
-				tHandLikelihood[0][pointBGR] = HandAna->pf4_RGB2Likelihood[int(bgr[0] * 256 * 256 + bgr[1] * 256 + bgr[2])];
+				tHandLikelihood[0][pointBGR] = HandAna->pf4_RGB2Likelihood[int(bgr[0] + bgr[1] * 256 + bgr[2] * 256 * 256)];
 			else
 				tHandLikelihood[0][pointBGR] = 0.0f;
 		}
@@ -350,7 +352,8 @@ void CViewDirect2D::CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray ou
 	//CorrectionImageImageDistortion(ActiveCameraArea, tHandLikelihood[0], ppf4_Hue[0], ppf4_Saturation[0], ppf4_Value[0], &m_handInfo, ppf4_UV[0], tHandLikelihood[1], ppf4_Hue[1], ppf4_Saturation[1], ppf4_Value[1], inImage, dstImage02);
 
 	/* 手指領域の重心位置の再計算 */
-	CalcHandCentroidRing(ActiveCameraArea, tHandLikelihood[0], inImage, single_chImage, &m_handInfo, dstImage02);
+	CalcPalmCentroid(ActiveCameraArea, tHandLikelihood[0], inImage, single_chImage, &m_handInfo, dstImage02);
+	//cv::Point center = FindMaxInscribedCircle(inImage, dstImage02);
 	/* 画像のゆがみ再補正 */
 
 	dstImage02.copyTo(outRenderImage03_);
@@ -374,7 +377,7 @@ void CViewDirect2D::CorrectionImageImageDistortion(unsigned char * tActiveArea, 
 @param outImage_	重心推定を行った結果の画像
 @sa cv::moments m_handInfo
 **/
-int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, float* pf4_HandLikelihood, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF * pHandInf_t, cv::OutputArray outImage_)
+int CViewDirect2D::CalcPalmCentroid(unsigned char * tActiveArea, float* pf4_HandLikelihood, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF * pHandInf_t, cv::OutputArray outImage_)
 {
 	cv::Mat inImage = inImage_.getMat();
 	cv::Mat inUVImage = inUVImage_.getMat();
@@ -471,7 +474,7 @@ int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, float* pf4_
 
 		cv::circle(dstImage, cv::Point(CenterX, CenterY), 2, cv::Scalar(0, 255, 0), -1, CV_AA);
 	}
-
+	
 	// ゆがみ補正のUV変換
 	/*
 	int i4_tIndU = (int)(pf4_tUV[(CenterY*size + CenterX) * 2 + 0]);
@@ -493,6 +496,58 @@ int CViewDirect2D::CalcHandCentroidRing(unsigned char * tActiveArea, float* pf4_
 		return 0;
 
 	return 1;
+}
+
+// https://www.cnblogs.com/jsxyhelu/p/6830093.html
+cv::Point CViewDirect2D::FindMaxInscribedCircle(cv::InputArray srcImage_, cv::OutputArray destImage_)
+{
+	cv::Mat srcImage = srcImage_.getMat();
+	cv::Mat binImage;
+	cv::cvtColor(srcImage, binImage, CV_BGR2GRAY);
+
+	// get the biggest Contour
+	std::vector<cv::Point> biggestContour = FindBiggestContour(binImage);
+
+	// find the maximum inscribed circle
+	int dist = 0;
+	int maxdist = 0;
+	cv::Point center;
+	#pragma omp parallel for
+	for (int i = 0;i < srcImage.cols ; i++) {
+		for (int j = 0; j < srcImage.rows; j++) {
+			dist = cv::pointPolygonTest(biggestContour, cv::Point(i, j), true);
+			if (dist > maxdist)
+			{
+				maxdist = dist;
+				center = cv::Point(i, j);
+			}
+		}
+	}
+
+	cv::circle(srcImage, center, maxdist, cv::Scalar(0, 0, 255));
+	srcImage.copyTo(destImage_);
+
+	return center;
+}
+
+// return the biggest contour by size
+std::vector<cv::Point> CViewDirect2D::FindBiggestContour(cv::InputArray srcImage_)
+{
+	cv::Mat srcImage = srcImage_.getMat();
+	int iCount = 0;
+	int iMaxContour = -1;
+	std::vector<std::vector<cv::Point>>contours;
+	findContours(srcImage, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
+	#pragma omp parallel for
+	for (int i = 0; i < contours.size(); i++) {
+		int itmp = contourArea(contours[i]);
+		if (iMaxContour < itmp) {
+			iCount = i;
+			iMaxContour = itmp;
+		}
+	}
+
+	return contours[iCount];
 }
 
 /** @brief 手指情報の解析を行う

@@ -135,7 +135,9 @@ public:
 	void CalcHandCentroid(cv::InputArray inImage_, cv::OutputArray outRenderImage02_, cv::OutputArray outRenderImage03_);
 	void CorrectionImageImageDistortion(unsigned char* tActiveArea, float* pf4_HandLikelihood_IN, float* p_tH_IN, float* p_tS_IN, float* p_tV_IN,
 		S_HANDINF *pHandInf_t, float* p_tUV_OUT, float* pf4_HandLikelihood_OUT, float* p_tH_OUT, float* p_tS_OUT, float* p_tV_OUT, cv::InputArray inImage_, cv::OutputArray outImage_);
-	int CalcHandCentroidRing(unsigned char* tActiveArea, float* pf4_HandLikelihood, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF *pHandInf_t, cv::OutputArray outImage_);
+	int CalcPalmCentroid(unsigned char* tActiveArea, float* pf4_HandLikelihood, cv::InputArray inImage_, cv::InputArray inUVImage_, S_HANDINF *pHandInf_t, cv::OutputArray outImage_);
+	cv::Point FindMaxInscribedCircle(cv::InputArray srcImage_, cv::OutputArray destImage_);
+	std::vector<cv::Point> FindBiggestContour(cv::InputArray srcImage_);
 
 	void AnalyzeHandInf(cv::InputArray inImage_, cv::OutputArray outRenderImage04_, cv::OutputArray outRenderImage05_);
 	int detectFinger2to5(int tCenterX, int tCenterY, cv::InputArray likelihoodArea, float *p_HueImage,
